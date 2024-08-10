@@ -49,45 +49,53 @@ os.environ["TOKENIZERS_PARALLELISM"] = "True"
 nltk.download('stopwords')
 random_seed = 22
 
-reduced_custom_stopwords = {'like','felt'}
+# reduced_custom_stopwords = {'like','felt','experience'}
+reduced_custom_stopwords = {}
 
 
 sentence_transformer_model = "all-mpnet-base-v2" #"paraphrase-MiniLM-L6-v2"# #"BAAI/bge-small-en" "all-MiniLM-L6-v2'"
 embedding_model = SentenceTransformer(sentence_transformer_model)
 
 
-# def hyperparams(len_dataset):
-#     '''
-#     Defined in helpers/BERT_helpers.py
-#     '''
-#     return {'umap_params': {
-#             'n_components': [3,4,5,7,10], #default to 2
-#             'n_neighbors': [5,7,10,12],
-#             'min_dist': [0.0,0.01,0.025,0.05], #default to 1.0
-#         },
-#         'hdbscan_params': {
-#             #list of 3 values : 1% len_dataset,10 (default value), 5% len_dataset
-#             'min_cluster_size': [int(len_dataset*0.025),int(len_dataset*0.03),int(len_dataset*0.05)],
-#             'min_samples': [None]#[int(len_dataset*0.025),int(len_dataset*0.03),int(len_dataset*0.05)] #default to None
-#         }
-#     }
 
 
 def hyperparams(len_dataset):
     '''
     Defined in helpers/BERT_helpers.py
     '''
-    return {'umap_params': {
-            'n_components': [2,3,4,5,7,9,10], #default to 2
-            'n_neighbors': [5,7,10,12,15],
-            'min_dist': [0.0,0.01,0.025,0.05], #default to 1.0
-        },
-        'hdbscan_params': {
-            #list of 3 values : 10% len_dataset, 25% len_dataset, 50% len_dataset
-            'min_cluster_size': [int(len_dataset*0.01),int(len_dataset*0.025)],
-            'min_samples': [int(len_dataset*0.01),int(len_dataset*0.025)]
-        }
-    }
+    if args.condition == 'HS':
+        return {'umap_params': {
+                'n_components': [6,7,8,9], #default to 2
+                'n_neighbors': [10,15,20],
+                'min_dist': [0.0], #default to 1.0
+            },
+            'hdbscan_params': {
+                #list of 3 values : 10% len_dataset, 25% len_dataset, 50% len_dataset
+                'min_cluster_size': [int(len_dataset*0.01),10],
+                'min_samples': [int(len_dataset*0.01),int(len_dataset*0.02),10]
+            }}
+    elif args.condition == 'DL':
+        return {'umap_params': {
+                'n_components': [5,7,9], #default to 2
+                'n_neighbors': [10,12,15],
+                'min_dist': [0.0], #default to 1.0
+            },
+            'hdbscan_params': {
+                'min_cluster_size': [int(len_dataset*0.033),int(len_dataset*0.05),10],
+                'min_samples': [int(len_dataset*0.033),int(len_dataset*0.05),10]
+
+            }}
+    else:
+        return {'umap_params': {
+                'n_components': [5,7,9,10], #default to 2
+                'n_neighbors': [5,10,15,20],
+                'min_dist': [0.0], #default to 1.0
+            },
+            'hdbscan_params': {
+                #list of 3 values : 10% len_dataset, 25% len_dataset, 50% len_dataset
+                'min_cluster_size': [int(len_dataset*0.01),int(len_dataset*0.025),int(len_dataset*0.05)],
+                'min_samples': [int(len_dataset*0.01),int(len_dataset*0.025),int(len_dataset*0.05)]
+            }}
 
 
 def hyperparams_reduced(len_dataset):
@@ -95,14 +103,14 @@ def hyperparams_reduced(len_dataset):
     Defined in helpers/BERT_helpers.py
     '''
     return {'umap_params': {
-            'n_components': [7], #default to 2
-            'n_neighbors': [3,5,7],
-            'min_dist': [0.01], #default to 1.0
+            'n_components': [7,9], #default to 2
+            'n_neighbors': [10,15],
+            'min_dist': [0.0], #default to 1.0
         },
         'hdbscan_params': {
             # list of 3 values : 1% len_dataset,10 (default value), 5% len_dataset
-            'min_cluster_size': [int(len_dataset*0.05)],
-            'min_samples': [None]  #default to None
+            'min_cluster_size': [int(len_dataset*0.025),10],
+            'min_samples': [int(len_dataset*0.025),10] #default to None
         }
     }
 
@@ -218,7 +226,7 @@ def run_grid_search(data, vectorizer_model, embedding_model,condition,reduced_GS
     print(f"Grid search completed in {time.time() - start_time:.2f} seconds")
 
     if store_results:
-        name_file = f'RESULTSentences/grid_search_results_{condition}_seed{random_seed}_10topwords.csv'
+        name_file = f'RESULTSentences/grid_search_results_{condition}_seed{random_seed}.csv'
         if reduced_GS:
             name_file = f'RESULTSentences/grid_search_results_{condition}_seed{random_seed}_reduced.csv'
         if os.path.isfile(name_file):
@@ -240,7 +248,7 @@ def run_bertopic(data,
          min_dist, 
          min_cluster_size, 
          min_samples=None,
-         top_n_words = 10,
+         top_n_words = 5,
          nr_topics = None):
     
     '''
