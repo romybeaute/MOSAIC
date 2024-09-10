@@ -37,7 +37,6 @@ dask==2024.1.1
 dask-cuda==24.4.0
 dask-cudf-cu12==24.4.1
 dask-expr==0.4.0
-datamapplot @ file:///home/romy/lyra/datamapplot
 datashader==0.16.2
 debugpy==1.8.1
 decorator==5.1.1
