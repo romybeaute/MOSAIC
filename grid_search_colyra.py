@@ -71,7 +71,7 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
             },
             'hdbscan_params': {
                 'min_cluster_size': [1,10,20,30,40,50], #default to 10
-                'min_cluster_size': [1,10,20,30,40,50],
+                'min_samples': [None],
             }}
     elif args.condition == 'DL':
         return {'umap_params': {
@@ -81,7 +81,7 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
             },
             'hdbscan_params': {
                 'min_cluster_size': [1,10,20,30,40,50], #default to 10
-                'min_cluster_size': [1,10,20,30,40,50],
+                'min_samples': [None],
             }}
     else:
         return {'umap_params': {
@@ -91,7 +91,7 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
             },
             'hdbscan_params': {
                 'min_cluster_size': [1,10,20,30,40,50,100], #default to 10
-                'min_cluster_size': [1,10,20,30,40,50,100],
+                'min_samples': [None],
             }}
 
 
@@ -343,7 +343,7 @@ def main(args):
     nltk.download('stopwords')
 
     # Setup the paths based on the condition
-    reports_path = os.path.join("DATA2", f"{args.condition}_reflections.csv")
+    reports_path = os.path.join("DATA2", f"{args.condition}_reflections_cleaned.csv")
     df_reports = pd.read_csv(reports_path,sep='\t')['reflection_answer']
 
     if args.sentences:
