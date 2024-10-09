@@ -285,7 +285,7 @@ def run_bertopic(data,
          min_dist, 
          min_cluster_size, 
          min_samples=None,
-         top_n_words = 5,
+         top_n_words = 10, #default to 10
          nr_topics = None):
     
     '''
