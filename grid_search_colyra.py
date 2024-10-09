@@ -59,43 +59,80 @@ embedding_model = SentenceTransformer(sentence_transformer_model)
 
 
 
-def hyperparams(len_dataset):
+def hyperparams(len_dataset): #extended version (modified 11/09/24)
     '''
     Defined in helpers/BERT_helpers.py
     '''
     if args.condition == 'HS':
         return {'umap_params': {
-                'n_components': [6,7,8,9], #default to 2
-                'n_neighbors': [10,15,20],
-                'min_dist': [0.0], #default to 1.0
+                'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
+                'n_neighbors': [5,10,15,20,25,30],
+                'min_dist': [0.0,0.01,0.05,1], #default to 1.0
             },
             'hdbscan_params': {
-                #list of 3 values : 10% len_dataset, 25% len_dataset, 50% len_dataset
-                'min_cluster_size': [int(len_dataset*0.01),10],
-                'min_samples': [int(len_dataset*0.01),int(len_dataset*0.02),10]
+                'min_cluster_size': [1,10,20,30,40,50], #default to 10
+                'min_cluster_size': [1,10,20,30,40,50],
             }}
     elif args.condition == 'DL':
         return {'umap_params': {
-                'n_components': [5,7,9], #default to 2
-                'n_neighbors': [10,12,15],
-                'min_dist': [0.0], #default to 1.0
+                'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
+                'n_neighbors': [5,10,15,20,25,30],
+                'min_dist': [0.0,0.01,0.05,1], #default to 1.0
             },
             'hdbscan_params': {
-                'min_cluster_size': [int(len_dataset*0.033),int(len_dataset*0.05),10],
-                'min_samples': [int(len_dataset*0.033),int(len_dataset*0.05),10]
-
+                'min_cluster_size': [1,10,20,30,40,50], #default to 10
+                'min_cluster_size': [1,10,20,30,40,50],
             }}
     else:
         return {'umap_params': {
-                'n_components': [5,7,9,10], #default to 2
-                'n_neighbors': [5,10,15,20],
-                'min_dist': [0.0], #default to 1.0
+                'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
+                'n_neighbors': [5,10,15,20,25,30],
+                'min_dist': [0.0,0.01,0.05,1], #default to 1.0
             },
             'hdbscan_params': {
-                #list of 3 values : 10% len_dataset, 25% len_dataset, 50% len_dataset
-                'min_cluster_size': [int(len_dataset*0.01),int(len_dataset*0.025),int(len_dataset*0.05)],
-                'min_samples': [int(len_dataset*0.01),int(len_dataset*0.025),int(len_dataset*0.05)]
+                'min_cluster_size': [1,10,20,30,40,50,100], #default to 10
+                'min_cluster_size': [1,10,20,30,40,50,100],
             }}
+
+
+
+# def hyperparams(len_dataset):
+#     '''
+#     Defined in helpers/BERT_helpers.py
+#     '''
+#     if args.condition == 'HS':
+#         return {'umap_params': {
+#                 'n_components': [6,7,8,9], #default to 2
+#                 'n_neighbors': [10,15,20],
+#                 'min_dist': [0.0], #default to 1.0
+#             },
+#             'hdbscan_params': {
+#                 #list of 3 values : 10% len_dataset, 25% len_dataset, 50% len_dataset
+#                 'min_cluster_size': [int(len_dataset*0.01),10],
+#                 'min_samples': [int(len_dataset*0.01),int(len_dataset*0.02),10]
+#             }}
+#     elif args.condition == 'DL':
+#         return {'umap_params': {
+#                 'n_components': [5,7,9], #default to 2
+#                 'n_neighbors': [10,12,15],
+#                 'min_dist': [0.0], #default to 1.0
+#             },
+#             'hdbscan_params': {
+#                 'min_cluster_size': [int(len_dataset*0.033),int(len_dataset*0.05),10],
+#                 'min_samples': [int(len_dataset*0.033),int(len_dataset*0.05),10]
+
+#             }}
+#     else:
+#         return {'umap_params': {
+#                 'n_components': [5,7,9,10], #default to 2
+#                 'n_neighbors': [5,10,15,20],
+#                 'min_dist': [0.0], #default to 1.0
+#             },
+#             'hdbscan_params': {
+#                 #list of 3 values : 10% len_dataset, 25% len_dataset, 50% len_dataset
+#                 'min_cluster_size': [int(len_dataset*0.01),int(len_dataset*0.025),int(len_dataset*0.05)],
+#                 'min_samples': [int(len_dataset*0.01),int(len_dataset*0.025),int(len_dataset*0.05)]
+#             }}
 
 
 def hyperparams_reduced(len_dataset):
@@ -349,5 +386,5 @@ if __name__ == "__main__":
 
 
 
-# python grid_search_colyra.py --condition DL --reduced_GS --sentences
+# python grid_search_colyra.py --condition DL --sentences
 # python grid_search_colyra.py --condition HS --sentences
