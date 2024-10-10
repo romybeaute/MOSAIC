@@ -220,6 +220,7 @@ def get_params_grid(len_dataset,reduced=False): #reduced set to true to test wit
 def run_grid_search(data, vectorizer_model, embedding_model,condition,reduced_GS=False,store_results=True):
 
     umap_combinations, hdbscan_combinations =get_params_grid(len(data),reduced=reduced_GS)
+    top_n_words_options = [5, 10]  # New parameter options
 
     start_time = time.time()
 
@@ -228,37 +229,40 @@ def run_grid_search(data, vectorizer_model, embedding_model,condition,reduced_GS
 
     for umap_config in tqdm(umap_combinations):
         for hdbscan_config in hdbscan_combinations:
-            try:
-                # Unpack the parameter sets
-                n_components, n_neighbors, min_dist = umap_config
-                min_cluster_size, min_samples = hdbscan_config
+            for top_n_words in top_n_words_options:
+                try:
+                    # Unpack the parameter sets
+                    n_components, n_neighbors, min_dist = umap_config
+                    min_cluster_size, min_samples = hdbscan_config
 
-                # Execute the run_bertopic function using unpacked parameters
-                model, topics, coherence_score,coherence_score_umass = run_bertopic(
-                    data=data,
-                    vectorizer_model=vectorizer_model,
-                    embedding_model=embedding_model,
-                    n_neighbors=n_neighbors,
-                    n_components=n_components,
-                    min_dist=min_dist,
-                    min_cluster_size=min_cluster_size,
-                    min_samples=min_samples
-                )
-                # Store results
-                results.append({
-                    'n_components': n_components,
-                    'n_neighbors': n_neighbors,
-                    'min_dist': min_dist,
-                    'min_cluster_size': min_cluster_size,
-                    'min_samples': min_samples,
-                    'coherence_score': coherence_score,
-                    'cohenrece_score_umass': coherence_score_umass,
-                    'n_topics':len(np.unique(topics)),
-                    'model': model
-                })
-            except Exception as e:
-                print(f"Error with parameters {umap_config}, {hdbscan_config}: {e}")
-                continue
+                    # Execute the run_bertopic function using unpacked parameters
+                    model, topics, coherence_score,coherence_score_umass = run_bertopic(
+                        data=data,
+                        vectorizer_model=vectorizer_model,
+                        embedding_model=embedding_model,
+                        n_neighbors=n_neighbors,
+                        n_components=n_components,
+                        min_dist=min_dist,
+                        min_cluster_size=min_cluster_size,
+                        min_samples=min_samples,
+                        top_n_words=top_n_words
+                    )
+                    # Store results
+                    results.append({
+                        'n_components': n_components,
+                        'n_neighbors': n_neighbors,
+                        'min_dist': min_dist,
+                        'min_cluster_size': min_cluster_size,
+                        'min_samples': min_samples,
+                        'top_n_words': top_n_words,
+                        'coherence_score': coherence_score,
+                        'cohenrece_score_umass': coherence_score_umass,
+                        'n_topics':len(np.unique(topics)),
+                        'model': model
+                    })
+                except Exception as e:
+                    print(f"Error with parameters {umap_config}, {hdbscan_config}, top_n_words={top_n_words}: {e}")
+                    continue
     results_df = pd.DataFrame(results).sort_values(by='coherence_score', ascending=False)
     print(f"Grid search completed in {time.time() - start_time:.2f} seconds")
 
@@ -284,8 +288,8 @@ def run_bertopic(data,
          n_components, 
          min_dist, 
          min_cluster_size, 
-         min_samples=None,
-         top_n_words = 10, #default to 10
+         min_samples,
+         top_n_words, #default to 10
          nr_topics = None):
     
     '''
@@ -297,7 +301,7 @@ def run_bertopic(data,
     - probs : contains the probability of each document belonging to their assigned topic
 
     '''
-    print(f"Received parameters: n_neighbors={n_neighbors}, n_components={n_components}, min_dist={min_dist}, min_cluster_size={min_cluster_size}, min_samples={min_samples}")
+    print(f"Received parameters: n_neighbors={n_neighbors}, n_components={n_components}, min_dist={min_dist}, min_cluster_size={min_cluster_size}, min_samples={min_samples},top_n_words={top_n_words}")
 
 
     # ********** Instanciate BERTOPIC **********
