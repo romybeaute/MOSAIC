@@ -71,7 +71,7 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
             },
             'hdbscan_params': {
                 'min_cluster_size': [1,10,20,30,40,50], #default to 10
-                'min_samples': [None],
+                'min_samples': [None,10],
             }}
     elif args.condition == 'DL':
         return {'umap_params': {
@@ -81,18 +81,29 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
             },
             'hdbscan_params': {
                 'min_cluster_size': [1,10,20,30,40,50], #default to 10
-                'min_samples': [None],
+                'min_samples': [None,10],
             }}
     else:
+        # return {'umap_params': {
+        #         'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
+        #         'n_neighbors': [5,10,15,20,25,30],
+        #         'min_dist': [0.0,0.01,0.05,1], #default to 1.0
+        #     },
+        #     'hdbscan_params': {
+        #         'min_cluster_size': [1,10,20,30,40,50,100], #default to 10
+        #         'min_samples': [None],
+        #     }}
         return {'umap_params': {
-                'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
-                'n_neighbors': [5,10,15,20,25,30],
-                'min_dist': [0.0,0.01,0.05,1], #default to 1.0
+                'n_components': [8,10,12,14,16], #default to 2, A higher number of components (8-12) can help capture more nuanced relationships in a large dataset, potentially leading to more coherent topics.
+                'n_neighbors': [15,20,25], #For a dataset of this size, values between 15-25 should provide a good balance between local and global structure preservation.
+                'min_dist': [0.0,0.01], #default to 1.0,  Lower values (0.0 or 0.01) tend to create more compact clusters, which can be beneficial for topic coherence.
             },
             'hdbscan_params': {
-                'min_cluster_size': [1,10,20,30,40,50,100], #default to 10
-                'min_samples': [None],
+                'min_cluster_size': [50,75,100], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
+                'min_samples': [None,10], #Using None (the default) or a small value like 5-10 can help balance between noise reduction and topic discovery.
             }}
+
+
 
 
 
@@ -220,7 +231,7 @@ def get_params_grid(len_dataset,reduced=False): #reduced set to true to test wit
 def run_grid_search(data, vectorizer_model, embedding_model,condition,reduced_GS=False,store_results=True):
 
     umap_combinations, hdbscan_combinations =get_params_grid(len(data),reduced=reduced_GS)
-    top_n_words_options = [5, 10]  # New parameter options
+    top_n_words_options = [10]  # New parameter options
 
     start_time = time.time()
 
@@ -347,7 +358,10 @@ def main(args):
     nltk.download('stopwords')
 
     # Setup the paths based on the condition
-    reports_path = os.path.join("DATA2", f"{args.condition}_reflections_cleaned.csv")
+    if args.condition == 'HW':
+        reports_path = os.path.join("DATA2", f"{args.condition}_reflections.csv")
+    else:
+        reports_path = os.path.join("DATA2", f"{args.condition}_reflections_cleaned.csv")
     df_reports = pd.read_csv(reports_path,sep='\t')['reflection_answer']
 
     if args.sentences:
