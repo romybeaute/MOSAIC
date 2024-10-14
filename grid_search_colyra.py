@@ -381,7 +381,7 @@ def main(args):
     results = {}
     for ngram_key, vectorizer_model in vectorizer_models.items():
         print(f"Running grid search for {ngram_key}...")
-        results[ngram_key] = run_grid_search(df_reports, vectorizer_model, embedding_model, args.condition, reduced_GS=args.reduced_GS, sentence=args.sentences, store_results=True)
+        results[ngram_key] = run_grid_search(df_reports, vectorizer_model, embedding_model, args.condition, reduced_GS=args.reduced_GS, sentences=args.sentences, store_results=True)
     
     for ngram_key, result_df in results.items():
         print(f"Top results for {ngram_key} n-gram:")
