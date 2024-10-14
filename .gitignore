@@ -1,9 +1,17 @@
+# Ignore Python virtual environment
 .colabvenv/
+
 # Ignore Llama model files
 model/
 *.gguf
+
 # Ignore datamapplot directory
 datamapplot/
+
 # Ignore Python cache files
 __pycache__/
 *.out*.code-workspace
+
+# Ignore results directory & HPC log files
+RESULTS/
+*.out
