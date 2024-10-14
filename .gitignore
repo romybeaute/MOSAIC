@@ -1,1 +1,4 @@
 .colabvenv/
+__pycache__/
+RESULTS/*.csv
+*.out
