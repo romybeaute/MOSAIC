@@ -1,1 +1,3 @@
 .colabvenv/
+__pycache__/
+*.out

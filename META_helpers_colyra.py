@@ -1,12 +1,12 @@
-'''
-@Author: Romy Beauté
-@Corresp: r.beaut@sussex.ac.uk
-@Last modification: 25-07-2024
-'''
-
-
-#define helpers functions
-#Condition can be either HS,DL or HW
+#!/usr/bin/env python
+# coding=utf-8
+# ==============================================================================
+# title           : META_helpers_colyra.py
+# description     : Define helpers functions
+#                   Condition can be either HS,DL or HW
+# author          : Romy, Beauté (r.beaut@sussex.ac.uk)
+# date            : 2024-07-25
+# ==============================================================================
 
 import pandas as pd
 import numpy as np
@@ -21,7 +21,6 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import WordPunctTokenizer
 import nltk
-nltk.download('wordnet')
 
 from gensim.corpora.dictionary import Dictionary
 import gensim.corpora as corpora
@@ -32,7 +31,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 # BERTopic Libraries
 from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
-from umap import UMAP
+from umap.umap_ import UMAP
 from hdbscan import HDBSCAN
 
 
@@ -42,7 +41,6 @@ from sklearn.model_selection import GridSearchCV
 
 
 import nltk
-nltk.download('punkt')
 from nltk.tokenize import sent_tokenize
 
 
@@ -54,7 +52,7 @@ extended_stop_words = stop_words.union(reduced_custom_stopwords) #load custom st
 
 sentence_transformer_model = "all-mpnet-base-v2" #"BAAI/bge-small-en" "all-MiniLM-L6-v2'"
 
-random_state = 22
+random_state = 42
 
 
 
