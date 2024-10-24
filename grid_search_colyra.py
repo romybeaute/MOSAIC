@@ -107,60 +107,44 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
 
 
 
-# def hyperparams(len_dataset):
-#     '''
-#     Defined in helpers/BERT_helpers.py
-#     '''
-#     if args.condition == 'HS':
-#         return {'umap_params': {
-#                 'n_components': [6,7,8,9], #default to 2
-#                 'n_neighbors': [10,15,20],
-#                 'min_dist': [0.0], #default to 1.0
-#             },
-#             'hdbscan_params': {
-#                 #list of 3 values : 10% len_dataset, 25% len_dataset, 50% len_dataset
-#                 'min_cluster_size': [int(len_dataset*0.01),10],
-#                 'min_samples': [int(len_dataset*0.01),int(len_dataset*0.02),10]
-#             }}
-#     elif args.condition == 'DL':
-#         return {'umap_params': {
-#                 'n_components': [5,7,9], #default to 2
-#                 'n_neighbors': [10,12,15],
-#                 'min_dist': [0.0], #default to 1.0
-#             },
-#             'hdbscan_params': {
-#                 'min_cluster_size': [int(len_dataset*0.033),int(len_dataset*0.05),10],
-#                 'min_samples': [int(len_dataset*0.033),int(len_dataset*0.05),10]
-
-#             }}
-#     else:
-#         return {'umap_params': {
-#                 'n_components': [5,7,9,10], #default to 2
-#                 'n_neighbors': [5,10,15,20],
-#                 'min_dist': [0.0], #default to 1.0
-#             },
-#             'hdbscan_params': {
-#                 #list of 3 values : 10% len_dataset, 25% len_dataset, 50% len_dataset
-#                 'min_cluster_size': [int(len_dataset*0.01),int(len_dataset*0.025),int(len_dataset*0.05)],
-#                 'min_samples': [int(len_dataset*0.01),int(len_dataset*0.025),int(len_dataset*0.05)]
-#             }}
 
 
-def hyperparams_reduced(len_dataset):
+def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
     '''
     Defined in helpers/BERT_helpers.py
     '''
-    return {'umap_params': {
-            'n_components': [7,9], #default to 2
-            'n_neighbors': [10,15],
-            'min_dist': [0.0], #default to 1.0
-        },
-        'hdbscan_params': {
-            # list of 3 values : 1% len_dataset,10 (default value), 5% len_dataset
-            'min_cluster_size': [int(len_dataset*0.025),10],
-            'min_samples': [int(len_dataset*0.025),10] #default to None
-        }
-    }
+    if args.condition == 'HS':
+        return {'umap_params': {
+                'n_components': [5,8,10,12,15,20], #default to 2
+                'n_neighbors': [5,10,15,20], #Heuristics: Small values (<5) focus too much on local structure and Large values (>50) may blur local distinctions
+                'min_dist': [0.0,0.01,0.05], #default to 1.0
+            },
+            'hdbscan_params': {
+                'min_cluster_size': [5,10], #default to 10
+                'min_samples': [5,10],
+            }}
+    elif args.condition == 'DL':
+        return {'umap_params': {
+                'n_components':  [5,8,10,12,15,20], #default to 2
+                'n_neighbors': [5,10,15,20],
+                'min_dist': [0.0,0.01,0.05], #default to 1.0
+            },
+            'hdbscan_params': {
+                'min_cluster_size': [5,10], #default to 10
+                'min_samples': [5,10],
+            }}
+    else:
+        return {'umap_params': {
+                'n_components': [8,10,12,14,16], #default to 2, A higher number of components (8-12) can help capture more nuanced relationships in a large dataset, potentially leading to more coherent topics.
+                'n_neighbors': [15,20,25], #For a dataset of this size, values between 15-25 should provide a good balance between local and global structure preservation.
+                'min_dist': [0.0,0.01], #default to 1.0,  Lower values (0.0 or 0.01) tend to create more compact clusters, which can be beneficial for topic coherence.
+            },
+            'hdbscan_params': {
+                'min_cluster_size': [50,75,100], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
+                'min_samples': [None,10], #Using None (the default) or a small value like 5-10 can help balance between noise reduction and topic discovery.
+            }}
+
+
 
 #############################################################################
 ################ COHERENCE METRICS ##########################################
@@ -231,7 +215,7 @@ def get_params_grid(len_dataset,reduced=False): #reduced set to true to test wit
 def run_grid_search(data, vectorizer_model, embedding_model,condition,reduced_GS=False,store_results=True):
 
     umap_combinations, hdbscan_combinations =get_params_grid(len(data),reduced=reduced_GS)
-    top_n_words_options = [10]  # New parameter options
+    top_n_words_options = [5,10]  # New parameter options
 
     start_time = time.time()
 
@@ -301,7 +285,7 @@ def run_bertopic(data,
          min_cluster_size, 
          min_samples,
          top_n_words, #default to 10
-         nr_topics = None):
+         nr_topics = "auto"):
     
     '''
     Defined in BERT_DM/BERTopic_hypertuned_multiprocessing.py
@@ -376,7 +360,7 @@ def main(args):
     # vectorizer_model = CountVectorizer(ngram_range=(1,3), stop_words=list(extended_stop_words))
 
     vectorizer_models = {
-        '1_2_gram': CountVectorizer(ngram_range=(1, 2), stop_words=list(extended_stop_words))
+        '1_2_gram': CountVectorizer(ngram_range=(1, 2), stop_words=list(extended_stop_words),max_df=0.9,min_df=2),
         # '1_3_gram': CountVectorizer(ngram_range=(1, 3), stop_words=list(extended_stop_words))
         }
     # Run grid search
