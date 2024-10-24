@@ -233,7 +233,7 @@ def main(data,
          min_dist, 
          min_cluster_size, 
          min_samples=None,
-         top_n_words = 10,
+         top_n_words = 5,
          nr_topics = None):
     
     '''
