@@ -66,7 +66,7 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
         return {'umap_params': {
                 'n_components': list(range(2, 21)), #2 to 20 step 1 (default to 2)
                 'n_neighbors': [5,10,15,20,25,30],
-                'min_dist': [0.0,0.01,0.05,1], #default to 1.0
+                'min_dist': [0.0,0.01,0.05], #default to 1.0
             },
             'hdbscan_params': {
                 'min_cluster_size': [5,10,15], #default to 10
@@ -76,29 +76,20 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
         return {'umap_params': {
                 'n_components': list(range(2, 21)), #default to 2
                 'n_neighbors': [5,10,15,20,25,30],
-                'min_dist': [0.0,0.01,0.05,1], #default to 1.0
+                'min_dist': [0.0,0.01,0.05], #default to 1.0
             },
             'hdbscan_params': {
                 'min_cluster_size': [5,10,15], #default to 10
                 'min_samples': [None,5],
             }}
     else:
-        # return {'umap_params': {
-        #         'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
-        #         'n_neighbors': [5,10,15,20,25,30],
-        #         'min_dist': [0.0,0.01,0.05,1], #default to 1.0
-        #     },
-        #     'hdbscan_params': {
-        #         'min_cluster_size': [1,10,20,30,40,50,100], #default to 10
-        #         'min_samples': [None],
-        #     }}
         return {'umap_params': {
-                'n_components': [8,10,12,14,16], #default to 2, A higher number of components (8-12) can help capture more nuanced relationships in a large dataset, potentially leading to more coherent topics.
-                'n_neighbors': [15,20,25], #For a dataset of this size, values between 15-25 should provide a good balance between local and global structure preservation.
-                'min_dist': [0.0,0.01], #default to 1.0,  Lower values (0.0 or 0.01) tend to create more compact clusters, which can be beneficial for topic coherence.
+                'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2, A higher number of components (8-12) can help capture more nuanced relationships in a large dataset, potentially leading to more coherent topics.
+                'n_neighbors': [10,15,20,25,30,35,40], #For a dataset of this size, values between 15-25 should provide a good balance between local and global structure preservation.
+                'min_dist': [0.0,0.01,0.05], #default to 1.0,  Lower values (0.0 or 0.01) tend to create more compact clusters, which can be beneficial for topic coherence.
             },
             'hdbscan_params': {
-                'min_cluster_size': [50,75,100], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
+                'min_cluster_size': [10,20,30,40,50,60], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
                 'min_samples': [None,10], #Using None (the default) or a small value like 5-10 can help balance between noise reduction and topic discovery.
             }}
 
