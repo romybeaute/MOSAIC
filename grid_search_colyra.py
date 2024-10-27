@@ -64,23 +64,23 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
     '''
     if args.condition == 'HS':
         return {'umap_params': {
-                'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
+                'n_components': list(range(2, 21)), #2 to 20 step 1 (default to 2)
                 'n_neighbors': [5,10,15,20,25,30],
                 'min_dist': [0.0,0.01,0.05,1], #default to 1.0
             },
             'hdbscan_params': {
-                'min_cluster_size': [1,10,20,30,40,50], #default to 10
-                'min_samples': [None,10],
+                'min_cluster_size': [5,10,15], #default to 10
+                'min_samples': [None,5],
             }}
     elif args.condition == 'DL':
         return {'umap_params': {
-                'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
+                'n_components': list(range(2, 21)), #default to 2
                 'n_neighbors': [5,10,15,20,25,30],
                 'min_dist': [0.0,0.01,0.05,1], #default to 1.0
             },
             'hdbscan_params': {
-                'min_cluster_size': [1,10,20,30,40,50], #default to 10
-                'min_samples': [None,10],
+                'min_cluster_size': [5,10,15], #default to 10
+                'min_samples': [None,5],
             }}
     else:
         # return {'umap_params': {
@@ -114,23 +114,25 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
     '''
     if args.condition == 'HS':
         return {'umap_params': {
-                'n_components': [5,8,10,12,15,20], #default to 2
+                # 'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
+                'n_components': [3,5,7,9,11,13,15,17,19,21], #default to 2
                 'n_neighbors': [5,10,15,20], #Heuristics: Small values (<5) focus too much on local structure and Large values (>50) may blur local distinctions
                 'min_dist': [0.0,0.01,0.05], #default to 1.0
             },
             'hdbscan_params': {
                 'min_cluster_size': [5,10], #default to 10
-                'min_samples': [5,10],
+                'min_samples': [5],
             }}
     elif args.condition == 'DL':
         return {'umap_params': {
-                'n_components':  [5,8,10,12,15,20], #default to 2
+                # 'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
+                'n_components': [3,5,7,9,11,13,15,17,19,21],
                 'n_neighbors': [5,10,15,20],
                 'min_dist': [0.0,0.01,0.05], #default to 1.0
             },
             'hdbscan_params': {
                 'min_cluster_size': [5,10], #default to 10
-                'min_samples': [5,10],
+                'min_samples': [5],
             }}
     else:
         return {'umap_params': {
@@ -229,6 +231,7 @@ def run_grid_search(data, vectorizer_model, embedding_model, condition, reduced_
                     n_components, n_neighbors, min_dist = umap_config
                     min_cluster_size, min_samples = hdbscan_config
 
+                    
                     # Execute the run_bertopic function using unpacked parameters
                     model, topics, coherence_score,coherence_score_umass = run_bertopic(
                         data=data,
@@ -251,8 +254,7 @@ def run_grid_search(data, vectorizer_model, embedding_model, condition, reduced_
                         'top_n_words': top_n_words,
                         'coherence_score': coherence_score,
                         'cohenrece_score_umass': coherence_score_umass,
-                        'n_topics':len(np.unique(topics)),
-                        'model': model
+                        'n_topics':len(np.unique(topics))
                     })
                 except Exception as e:
                     print(f"Error with parameters {umap_config}, {hdbscan_config}, top_n_words={top_n_words}: {e}")
@@ -263,15 +265,24 @@ def run_grid_search(data, vectorizer_model, embedding_model, condition, reduced_
     if store_results:
         name_file = f'RESULTS/grid_search_results_{condition}_seed{random_seed}.csv'
         if reduced_GS:
-            name_file = f'RESULTS/grid_search_results_{condition}_seed{random_seed}_reduced.csv'
+            name_file = name_file.replace('.csv','_reduced.csv')
         if sentences:
-            name_file = f'RESULTS/grid_search_results_{condition}_seed{random_seed}_sentences.csv'
+            name_file = name_file.replace('.csv','_sentences.csv')
+
         if os.path.isfile(name_file):
+            existing_df = pd.read_csv(name_file)
+            combined_df = pd.concat([existing_df, results_df], ignore_index=True)
             results_df.to_csv(name_file, mode='a', header=False, index=False)
+            param_columns = ['n_components', 'n_neighbors', 'min_dist', 
+                           'min_cluster_size', 'min_samples', 'top_n_words']
+            combined_df = combined_df.drop_duplicates(subset=param_columns, keep='last')
             # re sort the file by coherence score
-            results_df = pd.read_csv(name_file).sort_values(by='coherence_score', ascending=False)
+            combined_df = combined_df.sort_values(by='coherence_score', ascending=False)
+            combined_df.to_csv(name_file, index=False)
+            results_df = combined_df
 
         else:
+            results_df = pd.read_csv(name_file).sort_values(by='coherence_score', ascending=False)
             results_df.to_csv(name_file, index=False)
 
     return results_df
@@ -382,3 +393,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
+
+
+# python grid_search_colyra.py --condition HS --sentences --reduced_GS
