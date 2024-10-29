@@ -138,6 +138,8 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
 
 
 
+
+
 #############################################################################
 ################ COHERENCE METRICS ##########################################
 #############################################################################
@@ -199,7 +201,7 @@ def get_params_grid(len_dataset, reduced=False): #reduced set to true to test wi
     hyperparams_dict['hdbscan_params']['min_cluster_size'],
     hyperparams_dict['hdbscan_params']['min_samples']))
 
-    print("Total number of combinations:", len(umap_combinations)*len(hdbscan_combinations))
+    print("Total number of combinations:", len(umap_combinations)*len(hdbscan_combinations)*2) # *2 to acocunt for len(top_n_words_options)
     return umap_combinations, hdbscan_combinations
 
 
@@ -250,10 +252,12 @@ def run_grid_search(data, vectorizer_model, embedding_model, condition, reduced_
                 except Exception as e:
                     print(f"Error with parameters {umap_config}, {hdbscan_config}, top_n_words={top_n_words}: {e}")
                     continue
+
     results_df = pd.DataFrame(results).sort_values(by='coherence_score', ascending=False)
     print(f"Grid search completed in {time.time() - start_time:.2f} seconds")
 
     if store_results:
+        os.makedirs('RESULTS', exist_ok=True) # Create directory if it doesn't exist
         name_file = f'RESULTS/grid_search_results_{condition}_seed{random_seed}.csv'
         if reduced_GS:
             name_file = name_file.replace('.csv','_reduced.csv')
@@ -273,8 +277,7 @@ def run_grid_search(data, vectorizer_model, embedding_model, condition, reduced_
             results_df = combined_df
 
         else:
-            results_df = pd.read_csv(name_file).sort_values(by='coherence_score', ascending=False)
-            results_df.to_csv(name_file, index=False)
+            results_df.to_csv(name_file, index=False) #file doesnt exist, create it to save current results
 
     return results_df
 
