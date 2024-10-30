@@ -3,7 +3,7 @@
 # ==============================================================================
 # title           : grid_search_colyra.py
 # description     : Run grid search for BERTopic hyperparameters
-# author          : Romy, Beauté, Guillaume Dumas
+# author          : Romy Beauté, Guillaume Dumas
 # date            : 2024-09-18
 # version         : 2
 # usage           : python grid_search_colyra.py --condition DL --reduced_GS --sentences
@@ -96,9 +96,6 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
 
 
 
-
-
-
 def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
     '''
     Defined in helpers/BERT_helpers.py
@@ -106,7 +103,6 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
     if args.condition == 'HS':
         return {'umap_params': {
                 # 'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
-                'n_components': [3,5,7,9,11,13,15,17,19,21], #default to 2
                 'n_neighbors': [5,10,15,20], #Heuristics: Small values (<5) focus too much on local structure and Large values (>50) may blur local distinctions
                 'min_dist': [0.0,0.01,0.05], #default to 1.0
             },
@@ -117,7 +113,7 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
     elif args.condition == 'DL':
         return {'umap_params': {
                 # 'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
-                'n_components': [3,5,7,9,11,13,15,17,19,21],
+                'n_components': list(range(2, 21)),
                 'n_neighbors': [5,10,15,20],
                 'min_dist': [0.0,0.01,0.05], #default to 1.0
             },
@@ -135,6 +131,8 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
                 'min_cluster_size': [50,75,100], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
                 'min_samples': [None,10], #Using None (the default) or a small value like 5-10 can help balance between noise reduction and topic discovery.
             }}
+
+
 
 
 
@@ -315,6 +313,7 @@ def run_bertopic(data,
     
     hdbscan_model = HDBSCAN(min_cluster_size=min_cluster_size, 
                             min_samples=min_samples,
+                            cluster_selection_epsilon=0.03, #reduce number of outliers identified
                             gen_min_span_tree=True,
                             prediction_data=True) 
     
