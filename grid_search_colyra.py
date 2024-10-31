@@ -313,7 +313,7 @@ def run_bertopic(data,
     
     hdbscan_model = HDBSCAN(min_cluster_size=min_cluster_size, 
                             min_samples=min_samples,
-                            cluster_selection_epsilon=0.03, #reduce number of outliers identified
+                            cluster_selection_epsilon=0.01, #reduce number of outliers identified
                             gen_min_span_tree=True,
                             prediction_data=True) 
     
