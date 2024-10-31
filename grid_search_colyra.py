@@ -102,23 +102,22 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
     '''
     if args.condition == 'HS':
         return {'umap_params': {
-                # 'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
-                'n_neighbors': [5,10,15,20], #Heuristics: Small values (<5) focus too much on local structure and Large values (>50) may blur local distinctions
+                'n_components': list(range(2, 11)), #2 to 10 step 1 (default to 2)
+                'n_neighbors': [10,15,20], #Heuristics: Small values (<5) focus too much on local structure and Large values (>50) may blur local distinctions
                 'min_dist': [0.0,0.01,0.05], #default to 1.0
             },
             'hdbscan_params': {
-                'min_cluster_size': [5,10], #default to 10
+                'min_cluster_size': [5], #default to 10
                 'min_samples': [5],
             }}
     elif args.condition == 'DL':
         return {'umap_params': {
-                # 'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2
-                'n_components': list(range(2, 21)),
-                'n_neighbors': [5,10,15,20],
+                'n_components': list(range(2, 11)),
+                'n_neighbors': [10,15,20],
                 'min_dist': [0.0,0.01,0.05], #default to 1.0
             },
             'hdbscan_params': {
-                'min_cluster_size': [5,10], #default to 10
+                'min_cluster_size': [5], #default to 10
                 'min_samples': [5],
             }}
     else:
@@ -313,7 +312,7 @@ def run_bertopic(data,
 
     hdbscan_model = HDBSCAN(min_cluster_size=min_cluster_size, 
                             min_samples=min_samples,
-                            cluster_selection_epsilon=0.03, #reduce number of outliers identified
+                            # cluster_selection_epsilon=0.03, #reduce number of outliers identified
                             gen_min_span_tree=True,
                             prediction_data=True) 
     
