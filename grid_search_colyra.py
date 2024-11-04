@@ -65,7 +65,7 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
     if args.condition == 'HS':
         return {'umap_params': {
                 'n_components': list(range(2, 21)), #2 to 20 step 1 (default to 2)
-                'n_neighbors': [5,10,15,20,25,30],
+                'n_neighbors': [5,10,15,20,25],
                 'min_dist': [0.0,0.01,0.025,0.05], #default to 1.0
             },
             'hdbscan_params': {
@@ -75,7 +75,7 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
     elif args.condition == 'DL':
         return {'umap_params': {
                 'n_components': list(range(2, 21)), #default to 2
-                'n_neighbors': [5,10,15,20,25,30],
+                'n_neighbors': [5,10,15,20,25],
                 'min_dist': [0.0,0.01,0.025,0.05], #default to 1.0
             },
             'hdbscan_params': {
