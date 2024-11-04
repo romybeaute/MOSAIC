@@ -66,21 +66,21 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
         return {'umap_params': {
                 'n_components': list(range(2, 21)), #2 to 20 step 1 (default to 2)
                 'n_neighbors': [5,10,15,20,25,30],
-                'min_dist': [0.0,0.01,0.05], #default to 1.0
+                'min_dist': [0.0,0.01,0.025,0.05], #default to 1.0
             },
             'hdbscan_params': {
-                'min_cluster_size': [5,10,15], #default to 10
-                'min_samples': [None,5],
+                'min_cluster_size': [5], #default to 10
+                'min_samples': [5],
             }}
     elif args.condition == 'DL':
         return {'umap_params': {
                 'n_components': list(range(2, 21)), #default to 2
                 'n_neighbors': [5,10,15,20,25,30],
-                'min_dist': [0.0,0.01,0.05], #default to 1.0
+                'min_dist': [0.0,0.01,0.025,0.05], #default to 1.0
             },
             'hdbscan_params': {
-                'min_cluster_size': [5,10,15], #default to 10
-                'min_samples': [None,5],
+                'min_cluster_size': [5], #default to 10
+                'min_samples': [5],
             }}
     else:
         return {'umap_params': {
@@ -102,9 +102,9 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
     '''
     if args.condition == 'HS':
         return {'umap_params': {
-                'n_components': list(range(2, 11)), #2 to 10 step 1 (default to 2)
-                'n_neighbors': [10,15,20], #Heuristics: Small values (<5) focus too much on local structure and Large values (>50) may blur local distinctions
-                'min_dist': [0.0,0.01,0.05], #default to 1.0
+                'n_components': list(range(3, 11)), #2 to 10 step 1 (default to 2)
+                'n_neighbors': [10,15,20,25], #Heuristics: Small values (<5) focus too much on local structure and Large values (>50) may blur local distinctions
+                'min_dist': [0.0,0.01,0.025], #default to 1.0
             },
             'hdbscan_params': {
                 'min_cluster_size': [5], #default to 10
@@ -130,7 +130,6 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
                 'min_cluster_size': [50,75,100], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
                 'min_samples': [None,10], #Using None (the default) or a small value like 5-10 can help balance between noise reduction and topic discovery.
             }}
-
 
 
 
