@@ -52,7 +52,7 @@ os.environ["HF_DATASETS_OFFLINE"] = "1"
 random_seed = 42
 
 # reduced_custom_stopwords = {'like','felt','experience'}
-reduced_custom_stopwords = {}
+reduced_custom_stopwords = {'thank','thanks','thank you'}
 
 sentence_transformer_model = "all-mpnet-base-v2" #"paraphrase-MiniLM-L6-v2"# #"BAAI/bge-small-en" "all-MiniLM-L6-v2'"
 embedding_model = SentenceTransformer(sentence_transformer_model)
@@ -84,9 +84,9 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
             }}
     else:
         return {'umap_params': {
-                'n_components': [2,4,6,8,10,12,14,16,18,20], #default to 2, A higher number of components (8-12) can help capture more nuanced relationships in a large dataset, potentially leading to more coherent topics.
-                'n_neighbors': [10,15,20,25,30,35,40], #For a dataset of this size, values between 15-25 should provide a good balance between local and global structure preservation.
-                'min_dist': [0.0,0.01,0.05], #default to 1.0,  Lower values (0.0 or 0.01) tend to create more compact clusters, which can be beneficial for topic coherence.
+                'n_components': list(range(3, 21)), #default to 2, A higher number of components (8-12) can help capture more nuanced relationships in a large dataset, potentially leading to more coherent topics.
+                'n_neighbors': [10,15,20,25,30,35], #For a dataset of this size, values between 15-25 should provide a good balance between local and global structure preservation.
+                'min_dist': [0.01,0.025,0.05], #default to 1.0,  Lower values (0.0 or 0.01) tend to create more compact clusters, which can be beneficial for topic coherence.
             },
             'hdbscan_params': {
                 'min_cluster_size': [10,20,30,40,50,60], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
@@ -102,7 +102,7 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
     '''
     if args.condition == 'HS':
         return {'umap_params': {
-                'n_components': list(range(2, 21)), #2 to 10 step 1 (default to 2)
+                'n_components': list(range(3, 21)), #2 to 10 step 1 (default to 2)
                 'n_neighbors': [10,15,20,25], #Heuristics: Small values (<5) focus too much on local structure and Large values (>50) may blur local distinctions
                 'min_dist': [0.0,0.01,0.025,0.05], #default to 1.0
             },
@@ -112,23 +112,23 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
             }}
     elif args.condition == 'DL':
         return {'umap_params': {
-                'n_components': list(range(2, 11)),
-                'n_neighbors': [10,15,20],
-                'min_dist': [0.01,0.05], #default to 1.0
+                'n_components': list(range(2, 10)),
+                'n_neighbors': [10,15],
+                'min_dist': [0.01,0.025], #default to 1.0
             },
             'hdbscan_params': {
-                'min_cluster_size': [5], #default to 10
+                'min_cluster_size': [10], #default to 10
                 'min_samples': [5],
             }}
     else:
         return {'umap_params': {
-                'n_components': [8,10,12,14,16], #default to 2, A higher number of components (8-12) can help capture more nuanced relationships in a large dataset, potentially leading to more coherent topics.
-                'n_neighbors': [15,20,25], #For a dataset of this size, values between 15-25 should provide a good balance between local and global structure preservation.
-                'min_dist': [0.0,0.01], #default to 1.0,  Lower values (0.0 or 0.01) tend to create more compact clusters, which can be beneficial for topic coherence.
+                'n_components': [10], #default to 2, A higher number of components (8-12) can help capture more nuanced relationships in a large dataset, potentially leading to more coherent topics.
+                'n_neighbors': [20], #For a dataset of this size, values between 15-25 should provide a good balance between local and global structure preservation.
+                'min_dist': [0.01], #default to 1.0,  Lower values (0.0 or 0.01) tend to create more compact clusters, which can be beneficial for topic coherence.
             },
             'hdbscan_params': {
-                'min_cluster_size': [50,75,100], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
-                'min_samples': [None,10], #Using None (the default) or a small value like 5-10 can help balance between noise reduction and topic discovery.
+                'min_cluster_size': [50], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
+                'min_samples': [10], #Using None (the default) or a small value like 5-10 can help balance between noise reduction and topic discovery.
             }}
 
 
@@ -202,27 +202,111 @@ def get_params_grid(len_dataset, reduced=False): #reduced set to true to test wi
 
 
 
+# def run_grid_search(data, vectorizer_model, embedding_model, condition, reduced_GS=False, sentences=False, store_results=True):
+
+#     umap_combinations, hdbscan_combinations =get_params_grid(len(data),reduced=reduced_GS)
+#     top_n_words_options = [5]  # New parameter options
+
+#     start_time = time.time()
+
+#     # Nested loop to iterate over each combination of UMAP and HDBSCAN parameters
+#     results = []
+
+#     for umap_config in tqdm(umap_combinations):
+#         for hdbscan_config in hdbscan_combinations:
+#             for top_n_words in top_n_words_options:
+#                 try:
+#                     # Unpack the parameter sets
+#                     n_components, n_neighbors, min_dist = umap_config
+#                     min_cluster_size, min_samples = hdbscan_config
+
+                    
+#                     # Execute the run_bertopic function using unpacked parameters
+#                     model, topics, coherence_score,coherence_score_umass = run_bertopic(
+#                         data=data,
+#                         vectorizer_model=vectorizer_model,
+#                         embedding_model=embedding_model,
+#                         n_neighbors=n_neighbors,
+#                         n_components=n_components,
+#                         min_dist=min_dist,
+#                         min_cluster_size=min_cluster_size,
+#                         min_samples=min_samples,
+#                         top_n_words=top_n_words
+#                     )
+#                     # Store results
+#                     results.append({
+#                         'n_components': n_components,
+#                         'n_neighbors': n_neighbors,
+#                         'min_dist': min_dist,
+#                         'min_cluster_size': min_cluster_size,
+#                         'min_samples': min_samples,
+#                         'top_n_words': top_n_words,
+#                         'coherence_score': coherence_score,
+#                         'cohenrece_score_umass': coherence_score_umass,
+#                         'n_topics':len(np.unique(topics))
+#                     })
+#                 except Exception as e:
+#                     print(f"Error with parameters {umap_config}, {hdbscan_config}, top_n_words={top_n_words}: {e}")
+#                     continue
+
+#     results_df = pd.DataFrame(results).sort_values(by='coherence_score', ascending=False)
+#     print(f"Grid search completed in {time.time() - start_time:.2f} seconds")
+
+#     if store_results:
+#         os.makedirs('RESULTS', exist_ok=True) # Create directory if it doesn't exist
+#         name_file = f'RESULTS/grid_search_results_{condition}_seed{random_seed}.csv'
+#         if reduced_GS:
+#             name_file = name_file.replace('.csv','_reduced.csv')
+#         if sentences:
+#             name_file = name_file.replace('.csv','_sentences.csv')
+
+#         if os.path.isfile(name_file):
+#             existing_df = pd.read_csv(name_file)
+#             combined_df = pd.concat([existing_df, results_df], ignore_index=True)
+#             results_df.to_csv(name_file, mode='a', header=False, index=False)
+#             param_columns = ['n_components', 'n_neighbors', 'min_dist', 
+#                            'min_cluster_size', 'min_samples', 'top_n_words']
+#             combined_df = combined_df.drop_duplicates(subset=param_columns, keep='last')
+#             # re sort the file by coherence score
+#             combined_df = combined_df.sort_values(by='coherence_score', ascending=False)
+#             combined_df.to_csv(name_file, index=False)
+#             results_df = combined_df
+
+#         else:
+#             results_df.to_csv(name_file, index=False) #file doesnt exist, create it to save current results
+
+#     return results_df
+
 def run_grid_search(data, vectorizer_model, embedding_model, condition, reduced_GS=False, sentences=False, store_results=True):
-
-    umap_combinations, hdbscan_combinations =get_params_grid(len(data),reduced=reduced_GS)
-    top_n_words_options = [5,10]  # New parameter options
-
+    umap_combinations, hdbscan_combinations = get_params_grid(len(data), reduced=reduced_GS)
+    top_n_words_options = [5,10]
+    
     start_time = time.time()
-
-    # Nested loop to iterate over each combination of UMAP and HDBSCAN parameters
     results = []
-
+    
+    # create results file path
+    os.makedirs('RESULTS', exist_ok=True)
+    name_file = f'RESULTS/grid_search_results_{condition}_seed{random_seed}'
+    if reduced_GS:
+        name_file += '_reduced'
+    if sentences:
+        name_file += '_sentences'
+    name_file += '.csv'
+    
+    # init results file with headers if doesn't exist
+    if not os.path.exists(name_file):
+        pd.DataFrame(columns=['n_components', 'n_neighbors', 'min_dist', 
+                            'min_cluster_size', 'min_samples', 'top_n_words',
+                            'coherence_score', 'coherence_score_umass', 'n_topics']).to_csv(name_file, index=False)
+    
     for umap_config in tqdm(umap_combinations):
         for hdbscan_config in hdbscan_combinations:
             for top_n_words in top_n_words_options:
                 try:
-                    # Unpack the parameter sets
                     n_components, n_neighbors, min_dist = umap_config
                     min_cluster_size, min_samples = hdbscan_config
-
                     
-                    # Execute the run_bertopic function using unpacked parameters
-                    model, topics, coherence_score,coherence_score_umass = run_bertopic(
+                    model, topics, coherence_score, coherence_score_umass = run_bertopic(
                         data=data,
                         vectorizer_model=vectorizer_model,
                         embedding_model=embedding_model,
@@ -233,8 +317,9 @@ def run_grid_search(data, vectorizer_model, embedding_model, condition, reduced_
                         min_samples=min_samples,
                         top_n_words=top_n_words
                     )
-                    # Store results
-                    results.append({
+                    
+                    # save result immediately after each successful run
+                    result_df = pd.DataFrame([{
                         'n_components': n_components,
                         'n_neighbors': n_neighbors,
                         'min_dist': min_dist,
@@ -242,40 +327,24 @@ def run_grid_search(data, vectorizer_model, embedding_model, condition, reduced_
                         'min_samples': min_samples,
                         'top_n_words': top_n_words,
                         'coherence_score': coherence_score,
-                        'cohenrece_score_umass': coherence_score_umass,
-                        'n_topics':len(np.unique(topics))
-                    })
+                        'coherence_score_umass': coherence_score_umass,
+                        'n_topics': len(np.unique(topics))
+                    }])
+                    result_df.to_csv(name_file, mode='a', header=False, index=False)
+                    
+                    results.append(result_df.iloc[0].to_dict())
+                    
                 except Exception as e:
-                    print(f"Error with parameters {umap_config}, {hdbscan_config}, top_n_words={top_n_words}: {e}")
+                    print(f"Error with parameters {umap_config}, {hdbscan_config}, top_n_words={top_n_words}: {str(e)}")
                     continue
+    
+    # read all results and sort wrt cohehrence score
+    if os.path.exists(name_file):
+        final_df = pd.read_csv(name_file).sort_values(by='coherence_score', ascending=False)
+        return final_df
+    else:
+        return pd.DataFrame()  # Return empty DataFrame if no results
 
-    results_df = pd.DataFrame(results).sort_values(by='coherence_score', ascending=False)
-    print(f"Grid search completed in {time.time() - start_time:.2f} seconds")
-
-    if store_results:
-        os.makedirs('RESULTS', exist_ok=True) # Create directory if it doesn't exist
-        name_file = f'RESULTS/grid_search_results_{condition}_seed{random_seed}.csv'
-        if reduced_GS:
-            name_file = name_file.replace('.csv','_reduced.csv')
-        if sentences:
-            name_file = name_file.replace('.csv','_sentences.csv')
-
-        if os.path.isfile(name_file):
-            existing_df = pd.read_csv(name_file)
-            combined_df = pd.concat([existing_df, results_df], ignore_index=True)
-            results_df.to_csv(name_file, mode='a', header=False, index=False)
-            param_columns = ['n_components', 'n_neighbors', 'min_dist', 
-                           'min_cluster_size', 'min_samples', 'top_n_words']
-            combined_df = combined_df.drop_duplicates(subset=param_columns, keep='last')
-            # re sort the file by coherence score
-            combined_df = combined_df.sort_values(by='coherence_score', ascending=False)
-            combined_df.to_csv(name_file, index=False)
-            results_df = combined_df
-
-        else:
-            results_df.to_csv(name_file, index=False) #file doesnt exist, create it to save current results
-
-    return results_df
 
 
 def run_bertopic(data,
@@ -360,7 +429,7 @@ def main(args):
     # vectorizer_model = CountVectorizer(ngram_range=(1,3), stop_words=list(extended_stop_words))
 
     vectorizer_models = {
-        '1_2_gram': CountVectorizer(ngram_range=(1, 2), stop_words=list(extended_stop_words),max_df=0.9,min_df=2),
+        '1_2_gram': CountVectorizer(ngram_range=(1, 2), stop_words=list(extended_stop_words),max_df=0.9,min_df=3),
         # '1_3_gram': CountVectorizer(ngram_range=(1, 3), stop_words=list(extended_stop_words))
         }
     # Run grid search
