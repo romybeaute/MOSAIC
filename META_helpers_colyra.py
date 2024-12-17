@@ -45,7 +45,8 @@ from nltk.tokenize import sent_tokenize
 
 
 
-reduced_custom_stopwords = {""}
+reduced_custom_stopwords = {'thank','thanks','thank you'}
+
 
 stop_words = set(stopwords.words('english'))
 extended_stop_words = stop_words.union(reduced_custom_stopwords) #load custom stopwords from BERT_helpers.py
@@ -66,6 +67,16 @@ def split_sentences(reflections):
     for reflection in reflections:
         sentences += sent_tokenize(reflection)
     return sentences
+
+
+def clean_text(text):
+    # to lowercase
+    text = text.lower()
+    # Remv special characters and digits
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+    # rmv extra whitespace
+    text = ' '.join(text.split())
+    return text
 
 #############################################################################
 ################ HYPERPARAMS FOR GS ##########################################
@@ -174,6 +185,10 @@ def run_grid_search(data, vectorizer_model, embedding_model,HighSensory,HandWrit
     umap_combinations, hdbscan_combinations =get_params_grid(len(data),reduced=reduced_GS)
 
     start_time = time.time()
+
+    data_cleaned = [clean_text(doc) for doc in data]
+    data = data_cleaned
+
     
     # Nested loop to iterate over each combination of UMAP and HDBSCAN parameters
     results = []
