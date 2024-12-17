@@ -43,7 +43,7 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import make_scorer
 from sklearn.model_selection import GridSearchCV
 
-from META_helpers_colyra import split_sentences
+from META_helpers_colyra import split_sentences, clean_text
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "True"
@@ -89,7 +89,7 @@ def hyperparams(len_dataset): #extended version (modified 11/09/24)
                 'min_dist': [0.01,0.025,0.05], #default to 1.0,  Lower values (0.0 or 0.01) tend to create more compact clusters, which can be beneficial for topic coherence.
             },
             'hdbscan_params': {
-                'min_cluster_size': [10,20,30,40,50,60], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
+                'min_cluster_size': [10,20,30,40,50], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
                 'min_samples': [None,10], #Using None (the default) or a small value like 5-10 can help balance between noise reduction and topic discovery.
             }}
 
@@ -127,7 +127,7 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
                 'min_dist': [0.01], #default to 1.0,  Lower values (0.0 or 0.01) tend to create more compact clusters, which can be beneficial for topic coherence.
             },
             'hdbscan_params': {
-                'min_cluster_size': [50], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
+                'min_cluster_size': [10], #default to 10, A higher value (50-100) can help reduce the number of small, noisy clusters, potentially leading to more coherent topics.
                 'min_samples': [10], #Using None (the default) or a small value like 5-10 can help balance between noise reduction and topic discovery.
             }}
 
@@ -141,45 +141,95 @@ def hyperparams_reduced(len_dataset): #extended version (modified 11/09/24)
 #############################################################################
 
 
-# calculate coherence using BERTopic's model
+# # calculate coherence using BERTopic's model
+# def calculate_coherence(topic_model, data):
+
+#     topics, _ = topic_model.fit_transform(data)
+#     # Preprocess Documents
+#     documents = pd.DataFrame({"Document": data,
+#                           "ID": range(len(data)),
+#                           "Topic": topics})
+#     documents_per_topic = documents.groupby(['Topic'], as_index=False).agg({'Document': ' '.join})
+
+#     #Extracting the vectorizer and embedding model from BERTopic model
+#     vectorizer = topic_model.vectorizer_model #CountVectorizer of BERTopic model
+#     tokenizer = vectorizer.build_tokenizer()
+
+#     # Extract features for Topic Coherence evaluation
+#     tokens = [tokenizer(doc) for doc in data]
+
+#     dictionary = corpora.Dictionary(tokens)
+#     corpus = [dictionary.doc2bow(token) for token in tokens]
+
+#     topic_words = [[word for word, _ in topic_model.get_topic(topic_id)] for topic_id in range(len(set(topics))-1)]
+
+#     print("Topics:", topic_words)
+#     coherence_model = CoherenceModel(topics=topic_words,
+#                                      texts=tokens,
+#                                      corpus=corpus,
+#                                      dictionary=dictionary,
+#                                      coherence='c_v')
+#     coherence_score = coherence_model.get_coherence()
+
+#     coherence_model_umass = CoherenceModel(topics=topic_words, 
+#                                  texts=tokens, 
+#                                  corpus=corpus,
+#                                  dictionary=dictionary, 
+#                                  coherence='u_mass')
+#     coherence_score_umass = coherence_model_umass.get_coherence()
+
+#     return coherence_score,coherence_score_umass
+
+
+
 def calculate_coherence(topic_model, data):
-
     topics, _ = topic_model.fit_transform(data)
-    # Preprocess Documents
-    documents = pd.DataFrame({"Document": data,
-                          "ID": range(len(data)),
-                          "Topic": topics})
-    documents_per_topic = documents.groupby(['Topic'], as_index=False).agg({'Document': ' '.join})
-
-    #Extracting the vectorizer and embedding model from BERTopic model
-    vectorizer = topic_model.vectorizer_model #CountVectorizer of BERTopic model
-    tokenizer = vectorizer.build_tokenizer()
-
+    
+    # Get topic words and filter out empty topics
+    topic_words = []
+    for topic_id in range(len(set(topics))-1):
+        words = [word for word, _ in topic_model.get_topic(topic_id)]
+        # Only include topics that have at least one non-empty word
+        if any(word.strip() for word in words):
+            topic_words.append(words)
+    
+    if not topic_words:
+        print("No valid topics found for coherence calculation")
+        return float('nan'), float('nan')
+    
     # Extract features for Topic Coherence evaluation
+    vectorizer = topic_model.vectorizer_model
+    tokenizer = vectorizer.build_tokenizer()
     tokens = [tokenizer(doc) for doc in data]
-
+    
     dictionary = corpora.Dictionary(tokens)
     corpus = [dictionary.doc2bow(token) for token in tokens]
 
-    topic_words = [[word for word, _ in topic_model.get_topic(topic_id)] for topic_id in range(len(set(topics))-1)]
+    try:
+        coherence_model = CoherenceModel(
+            topics=topic_words,
+            texts=tokens,
+            corpus=corpus,
+            dictionary=dictionary,
+            coherence='c_v'
+        )
+        coherence_score = coherence_model.get_coherence()
 
-    print("Topics:", topic_words)
-    coherence_model = CoherenceModel(topics=topic_words,
-                                     texts=tokens,
-                                     corpus=corpus,
-                                     dictionary=dictionary,
-                                     coherence='c_v')
-    coherence_score = coherence_model.get_coherence()
-
-    coherence_model_umass = CoherenceModel(topics=topic_words, 
-                                 texts=tokens, 
-                                 corpus=corpus,
-                                 dictionary=dictionary, 
-                                 coherence='u_mass')
-    coherence_score_umass = coherence_model_umass.get_coherence()
-
-    return coherence_score,coherence_score_umass
-
+        coherence_model_umass = CoherenceModel(
+            topics=topic_words,
+            texts=tokens,
+            corpus=corpus,
+            dictionary=dictionary,
+            coherence='u_mass'
+        )
+        coherence_score_umass = coherence_model_umass.get_coherence()
+        
+        print(f"Number of valid topics used for coherence calculation: {len(topic_words)}")
+        return coherence_score, coherence_score_umass
+        
+    except Exception as e:
+        print(f"Error calculating coherence: {str(e)}")
+        return float('nan'), float('nan')
 
 def get_params_grid(len_dataset, reduced=False): #reduced set to true to test with reduced hyperparams combnations
     if reduced:
@@ -422,6 +472,8 @@ def main(args):
         print("Splitting sentences...")
         print(f"N = {len(df_reports)} sentences")
         
+    data_cleaned = [clean_text(doc) for doc in df_reports]
+    df_reports = data_cleaned
 
     # Configuration based on command line arguments
     extended_stop_words = set(stopwords.words('english')).union(reduced_custom_stopwords)
@@ -429,7 +481,7 @@ def main(args):
     # vectorizer_model = CountVectorizer(ngram_range=(1,3), stop_words=list(extended_stop_words))
 
     vectorizer_models = {
-        '1_2_gram': CountVectorizer(ngram_range=(1, 2), stop_words=list(extended_stop_words),max_df=0.9,min_df=3),
+        '1_2_gram': CountVectorizer(ngram_range=(1, 2), stop_words=list(extended_stop_words),max_df=0.9,min_df=2),
         # '1_3_gram': CountVectorizer(ngram_range=(1, 3), stop_words=list(extended_stop_words))
         }
     # Run grid search
