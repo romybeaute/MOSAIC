@@ -481,7 +481,7 @@ def main(args):
     # vectorizer_model = CountVectorizer(ngram_range=(1,3), stop_words=list(extended_stop_words))
 
     vectorizer_models = {
-        '1_2_gram': CountVectorizer(ngram_range=(1, 2), stop_words=list(extended_stop_words),max_df=0.9,min_df=2),
+        '1_2_gram': CountVectorizer(ngram_range=(1, 2), stop_words=list(extended_stop_words),max_df=0.95,min_df=3),
         # '1_3_gram': CountVectorizer(ngram_range=(1, 3), stop_words=list(extended_stop_words))
         }
     # Run grid search
