@@ -10,9 +10,4 @@
 module load python/3.10 StdEnv/2023
 source ~/PY310/bin/activate
 
-python grid_search_colyra.py --condition HS --reduced_GS
-#python grid_search_colyra.py --condition DL --reduced_GS
-#python grid_search_colyra.py --condition HS
-#python grid_search_colyra.py --condition DL
-#python grid_search_colyra.py --condition HS --sentences
-#python grid_search_colyra.py --condition DL --sentences
+python grid_search.py --condition HS --reduced_GS -- sentences
