@@ -73,7 +73,8 @@ class GridSearchBERTopic:
                 ngram_range=self.dataset_config.ngram_range,
                 stop_words=list(self.dataset_config.extended_stop_words),
                 max_df=self.dataset_config.max_df,
-                min_df=self.dataset_config.min_df
+                min_df=self.dataset_config.min_df,
+                lowercase=True #lowercase all words to make sure stopwords not case sensitive
             )
         }
 

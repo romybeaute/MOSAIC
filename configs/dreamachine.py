@@ -70,7 +70,7 @@ class DreamachineConfig:
     def _get_reduced_params(condition):
         if condition == 'HS':
             return {'umap_params': {
-                    'n_components': list(range(3, 10)),
+                    'n_components': [2],
                     'n_neighbors': [10],
                     'min_dist': [0.01],
                 },
@@ -80,12 +80,12 @@ class DreamachineConfig:
                 }}
         elif condition == 'DL':
             return {'umap_params': {
-                    'n_components': list(range(3, 10)),
+                    'n_components': [2],
                     'n_neighbors': [10],
                     'min_dist': [0.01],
                 },
                 'hdbscan_params': {
-                    'min_cluster_size': [10],
+                    'min_cluster_size': [5],
                     'min_samples': [5],
                 }}
         else:
