@@ -1,69 +1,86 @@
+```markdown
 # MOSAIC: Mapping Of Subjective Accounts into Interpreted Clusters
 
-Python pipeline for topic modeling of consciousness-related textual data using BERTopic.
+Topic modelling pipeline for consciousness-related textual data using BERTopic, BERT embeddings, and UMAP-HDBSCAN clustering.
+
+## Overview
+
+MOSAIC analyses subjective experiential reports through:
+- Advanced NLP with BERT embeddings
+- Dimensionality reduction via UMAP 
+- Density-based clustering with HDBSCAN
+- Topic coherence optimisation
 
 ## Structure
 
+```
 MOSAIC/
-├── src/     # Core pipeline, data-agnostic
-│   ├── preprocessor.py      # Text preprocessing and cleaning
-│   ├── model.py            # BERTopic model configuration
-│   └── utils.py            # Helper functions and metrics
-├── configs/                # Data-specific configurations
-│   ├── HS_config.py       # High Sensory parameters
-│   ├── DL_config.py       # Deep Listening parameters
-│   └── HW_config.py
-├── scripts/               # Imports configs based on condition
-│   ├── grid_search.py      # Hyperparameter optimization, 
-│   ├── visualization.py    # (Planned) Visualization tools
-│   └── cluster_analysis.py # (Planned) Advanced analysis
-└── requirements.txt
+├── src/                    # Core functionality
+│   ├── preprocessor.py     # Text cleaning, sentence splitting
+│   ├── model.py           # BERTopic configuration
+│   └── utils.py           # Metrics and helpers
+├── configs/               # Experiment parameters
+│   └── dreamachine.py    # Dataset-specific settings
+└── scripts/              # Analysis tools
+    └── grid_search.py    # Hyperparameter optimisation
+```
 
 ### Source (`src/`)
 
 - `preprocessor.py`
- - Text cleaning and preprocessing
- - Sentence splitting
- - Stopword removal
- - Tokenization
+  - Text preprocessing and cleaning
+  - Sentence splitting
+  - Stopword removal
+  - Custom tokenization
 
-- `model.py` 
- - BERTopic configuration
- - Model parameters
- - Topic extraction
- - Embedding generation
+- `model.py`
+  - BERTopic configuration
+  - UMAP dimensionality reduction
+  - HDBSCAN clustering
+  - Topic extraction and validation
 
 - `utils.py`
- - Coherence metrics
- - Evaluation utilities
- - Helper functions
+  - Coherence metrics
+  - Grid search utilities
+  - Helper functions
+
+### Configs (`configs/`)
+
+- `dreamachine.py`
+  - Dataset-specific parameters
+  - Model hyperparameters
+  - Preprocessing settings
 
 ### Scripts (`scripts/`)
 
 - `grid_search.py`
- - Hyperparameter optimization
- - Model evaluation
- - Results logging
+  - Hyperparameter optimisation
+  - Model evaluation
+  - Results logging
 
-- `visualization.py`
- - Topic visualization
- - Embedding plots
- - Hierarchical clustering dendrograms
-
-- `cluster_analysis.py` 
- - Topic hierarchy analysis
- - Cluster validation
- - Semantic interpretation
-
-## Setup
+## Installation
 
 ```bash
+git clone https://github.com/romybeaute/MOSAIC.git
+cd MOSAIC
 pip install -r requirements.txt
-
+```
 
 ## Usage
-from src.model import setup_topic_model
-from scripts.grid_search import run_grid_search
 
-# Run grid search
-results = run_grid_search(data, condition='HS')
+Run grid search optimisation:
+```python
+python grid_search.py --dataset dreamachine --condition HS --sentences
+```
+
+Parameters:
+- `--dataset`: Dataset name
+- `--condition`: Experimental condition [HS, DL, HW]
+- `--sentences`: Enable sentence-level analysis
+- `--reduced_GS`: Use reduced parameter grid
+
+## Citation
+
+If using this code, please cite:
+[Citation details to be added]
+```
