@@ -17,4 +17,4 @@ __pycache__/
 
 # Ignore results directory & HPC log files
 RESULTS/
-*.out
+*.out*.code-workspace
