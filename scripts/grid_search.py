@@ -40,6 +40,7 @@ class GridSearchBERTopic:
         self.reduced_GS = reduced_GS
         self.use_sentences = use_sentences
         self.random_seed = 42
+        self.top_n_words = 10
 
         #load apprioriate dataset config
         if dataset == "dreamachine":
@@ -122,7 +123,7 @@ class GridSearchBERTopic:
             self.condition,
             self.reduced_GS
         )
-        top_n_words_options = [self.top_n_words]
+        top_n_words_options = [self.dataset_config.top_n_words]
         start_time = time.time()
         
         for umap_config in tqdm(umap_combinations):
@@ -207,4 +208,4 @@ if __name__ == "__main__":
         print(result_df.head())
 
 
-# python grid_search.py --dataset dreamachine --condition HS --sentences --reduced_GS
+# python grid_search.py --dataset dreamachine --condition DL --sentences --reduced_GS

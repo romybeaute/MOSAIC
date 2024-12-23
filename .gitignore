@@ -1,5 +1,5 @@
 # Ignore Python virtual environment
-.colabvenv/
+.mosavenv/
 
 # Ignore Llama model files
 model/
@@ -18,3 +18,11 @@ __pycache__/
 # Ignore results directory & HPC log files
 RESULTS/
 *.out*.code-workspace
+
+#ignore MOSAIC.egg-info
+MOSAIC.egg-info/
+
+
+#ignore DATA directory
+DATA/
+RESULTS/

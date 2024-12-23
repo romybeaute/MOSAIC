@@ -34,7 +34,7 @@ class DreamachineConfig:
         return self._get_reduced_params(condition) if reduced else self._get_full_params(condition)
 
 
-    def _get_full_params(condition):
+    def _get_full_params(self,condition):
         if condition == 'HS':
             return {'umap_params': {
                     'n_components': list(range(3, 21)), 
@@ -67,7 +67,7 @@ class DreamachineConfig:
                 }}
 
 
-    def _get_reduced_params(condition):
+    def _get_reduced_params(self,condition):
         if condition == 'HS':
             return {'umap_params': {
                     'n_components': [2],

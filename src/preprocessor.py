@@ -20,9 +20,7 @@ from nltk.tokenize import WordPunctTokenizer
 
 import nltk
 from nltk.tokenize import sent_tokenize
-
-
-
+from nltk.tokenize import PunktSentenceTokenizer
 
 
 
@@ -36,9 +34,10 @@ from nltk.tokenize import sent_tokenize
 
 
 def split_sentences(reflections):
+    tokenizer = PunktSentenceTokenizer()
     sentences = []
     for reflection in reflections:
-        sentences += sent_tokenize(reflection)
+        sentences += tokenizer.tokenize(reflection)
     return sentences
 
 

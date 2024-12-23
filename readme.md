@@ -63,6 +63,14 @@ MOSAIC/
 ```bash
 git clone https://github.com/romybeaute/MOSAIC.git
 cd MOSAIC
+
+# Create and activate virtual environment
+python3 -m venv .mosavenv
+source .mosavenv/bin/activate
+
+# Install dependencies
+pip install pandas sentence-transformers scikit-learn tqdm nltk bertopic umap-learn hdbscan gensim
+or
 pip install -r requirements.txt
 ```
 

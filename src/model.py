@@ -4,7 +4,7 @@ from umap.umap_ import UMAP
 from hdbscan import HDBSCAN
 
 
-from utils import calculate_coherence, get_params_grid
+from src.utils import calculate_coherence, get_params_grid
 
 
 def setup_model(umap_model, hdbscan_model, embedding_model, vectorizer_model, top_n_words=10, nr_topics="auto"):
