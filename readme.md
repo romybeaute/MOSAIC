@@ -1,4 +1,4 @@
-```markdown
+
 # MOSAIC: Mapping Of Subjective Accounts into Interpreted Clusters
 
 Topic modelling pipeline for consciousness-related textual data using BERTopic, BERT embeddings, and UMAP-HDBSCAN clustering.
@@ -13,7 +13,7 @@ MOSAIC analyses subjective experiential reports through:
 
 ## Structure
 
-```
+
 MOSAIC/
 ├── src/                    # Core functionality
 │   ├── preprocessor.py     # Text cleaning, sentence splitting
@@ -23,7 +23,7 @@ MOSAIC/
 │   └── dreamachine.py    # Dataset-specific settings
 └── scripts/              # Analysis tools
     └── grid_search.py    # Hyperparameter optimisation
-```
+
 
 ### Source (`src/`)
 
@@ -82,5 +82,6 @@ Parameters:
 ## Citation
 
 If using this code, please cite:
-[Citation details to be added]
+- Analysing the phenomenology of stroboscopically induced phenomena using natural language topic modelling (Beauté et al.,2024)
+- BERTopic: Neural topic modeling with a class-based TF-IDF procedure (M. Grootendorst, 2022)
 ```
