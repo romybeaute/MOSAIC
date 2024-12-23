@@ -5,6 +5,9 @@
 model/
 *.gguf
 
+# ignore code workspace
+*.code-workspace
+
 # Ignore datamapplot directory
 datamapplot/
 
