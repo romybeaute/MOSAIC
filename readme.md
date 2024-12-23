@@ -1,4 +1,7 @@
-# MOSAIC: Multimodal Ontological State Analysis in Consciousness
+# MOSAIC: Mapping Of Subjective Accounts into Interpreted Clusters
+
+Resources
+
 
 Python pipeline for topic modeling of consciousness-related textual data using BERTopic.
 
