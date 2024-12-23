@@ -63,10 +63,12 @@ MOSAIC/
 ```bash
 git clone https://github.com/romybeaute/MOSAIC.git
 cd MOSAIC
-
 # Create and activate virtual environment
 python3 -m venv .mosavenv
 source .mosavenv/bin/activate
+pip install -e .
+
+
 
 # Install dependencies
 pip install pandas sentence-transformers scikit-learn tqdm nltk bertopic umap-learn hdbscan gensim
@@ -77,8 +79,8 @@ pip install -r requirements.txt
 ## Usage
 
 Run grid search optimisation:
-```python
-python grid_search.py --dataset dreamachine --condition HS --sentences
+```
+python scripts/grid_search.py --dataset your_dataset --condition COND --sentences
 ```
 
 Parameters:
