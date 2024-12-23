@@ -1,19 +1,20 @@
 # MOSAIC: Mapping Of Subjective Accounts into Interpreted Clusters
 
-Resources
-
-
 Python pipeline for topic modeling of consciousness-related textual data using BERTopic.
 
 ## Structure
 
 MOSAIC/
-├── src/
+├── src/     # Core pipeline, data-agnostic
 │   ├── preprocessor.py      # Text preprocessing and cleaning
 │   ├── model.py            # BERTopic model configuration
 │   └── utils.py            # Helper functions and metrics
-├── scripts/
-│   ├── grid_search.py      # Hyperparameter optimization
+├── configs/                # Data-specific configurations
+│   ├── HS_config.py       # High Sensory parameters
+│   ├── DL_config.py       # Deep Listening parameters
+│   └── HW_config.py
+├── scripts/               # Imports configs based on condition
+│   ├── grid_search.py      # Hyperparameter optimization, 
 │   ├── visualization.py    # (Planned) Visualization tools
 │   └── cluster_analysis.py # (Planned) Advanced analysis
 └── requirements.txt

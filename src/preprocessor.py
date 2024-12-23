@@ -32,10 +32,6 @@ from nltk.tokenize import sent_tokenize
 
 
 
-reduced_custom_stopwords = {'thank','thanks','thank you'}
-stop_words = set(stopwords.words('english'))
-extended_stop_words = stop_words.union(reduced_custom_stopwords) #load custom stopwords from BERT_helpers.py
-
 
 
 

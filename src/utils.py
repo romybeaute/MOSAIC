@@ -8,15 +8,17 @@
 # date            : 2024-07-25
 # ==============================================================================
 
-from gensim.corpora.dictionary import Dictionary
-import gensim.corpora as corpora
-from gensim.models.coherencemodel import CoherenceModel
+
+
 
 
 #############################################################################
 ################ COHERENCE METRICS ##########################################
 #############################################################################
 
+from gensim.corpora.dictionary import Dictionary
+import gensim.corpora as corpora
+from gensim.models.coherencemodel import CoherenceModel
 
 
 def calculate_coherence(topic_model, data):
@@ -70,23 +72,29 @@ def calculate_coherence(topic_model, data):
 
 
 
+#############################################################################
+################ HYPERPARAMETERS ############################################
+#############################################################################
 
-def get_params_grid(len_dataset, reduced=False): #reduced set to true to test with reduced hyperparams combnations
-    if reduced:
-        hyperparams_dict = hyperparams_reduced(len_dataset)
-    else:
-        hyperparams_dict = hyperparams(len_dataset)
+import itertools
 
+
+def get_params_grid(dataset_config, condition,reduced=False): #reduced set to true to test with reduced hyperparams combnations
+    """Generate parameter grid from dataset config."""
+    params = dataset_config.get_params(condition, reduced)
+    
    #  Generate all combinations of hyperparameters
     umap_combinations = list(itertools.product(
-    hyperparams_dict['umap_params']['n_components'],
-    hyperparams_dict['umap_params']['n_neighbors'],
-    hyperparams_dict['umap_params']['min_dist']))
+        params['umap_params']['n_components'],
+        params['umap_params']['n_neighbors'],
+        params['umap_params']['min_dist']
+    ))
 
     hdbscan_combinations = list(itertools.product(
-    hyperparams_dict['hdbscan_params']['min_cluster_size'],
-    hyperparams_dict['hdbscan_params']['min_samples']))
+        params['hdbscan_params']['min_cluster_size'],
+        params['hdbscan_params']['min_samples']
+    ))
 
-    print("Total number of combinations:", len(umap_combinations)*len(hdbscan_combinations)*2) # *2 to acocunt for len(top_n_words_options)
+    print("Total number of combinations:", len(umap_combinations)*len(hdbscan_combinations)) 
     return umap_combinations, hdbscan_combinations
 
