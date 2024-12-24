@@ -25,4 +25,5 @@ MOSAIC.egg-info/
 
 #ignore DATA directory
 DATA/
-RESULTS/.DS_Store
+.DS_Store
+
