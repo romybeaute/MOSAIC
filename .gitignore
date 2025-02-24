@@ -9,7 +9,8 @@ model/
 *.code-workspace
 
 # Ignore datamapplot directory
-datamapplot/
+src/datamapplot/
+
 
 # Ignore Python cache files
 __pycache__/
