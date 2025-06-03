@@ -211,7 +211,7 @@ class JapaneseProcessor(LanguageProcessor):
         """Initialise Sudachi tokenizer with full dictionary"""
         try:
             self.tokenizer_obj = dictionary.Dictionary(dict="full").create()
-            self.mode = tokenizer.Tokenizer.SplitMode.B  # Balanced mode
+            self.mode = tokenizer.Tokenizer.SplitMode.C
         except ImportError:
             print("Error: Install Sudachi - pip install sudachipy sudachidict_full")
             self.tokenizer_obj = None
@@ -270,25 +270,29 @@ class JapaneseProcessor(LanguageProcessor):
         self.stopwords.update(ja_stopwords_inner_speech)
         self.stopwords.update(custom_stopwords)
 
-    def preprocess_text(self, text):
-        """Full preprocessing pipeline"""
-        if not self.tokenizer_obj:
-            return text  # Fallback if Sudachi not installed
+    # def preprocess_text(self, text):
+    #     """More extensive / aggressive preprocessing pipeline"""
+    #     if not self.tokenizer_obj:
+    #         return text  # Fallback if Sudachi not installed
             
-        # Basic cleaning from parent class
-        text = super().preprocess_text(text)
+    #     # Basic cleaning from parent class
+    #     text = super().preprocess_text(text)
         
-        # Sudachi tokenization with POS filtering
-        tokens = []
-        for m in self.tokenizer_obj.tokenize(text, self.mode):
-            pos = m.part_of_speech()[0]
-            if pos != '助詞':
-                tokens.append(m.dictionary_form())
+    #     # Sudachi tokenization with POS filtering
+    #     tokens = []
+    #     for m in self.tokenizer_obj.tokenize(text, self.mode):
+    #         pos = m.part_of_speech()[0]
+    #         if pos != '助詞':
+    #             tokens.append(m.dictionary_form())
         
-        # Stopword removal
-        tokens = [t for t in tokens if t not in self.stopwords]
+    #     # Stopword removal
+    #     tokens = [t for t in tokens if t not in self.stopwords]
         
-        return ' '.join(tokens)
+    #     return ' '.join(tokens)
+
+    def preprocess_text(self, text):
+        """Fuvery basic preprocessing pipeline, no sudachi tokenization"""
+        return super().preprocess_text(text)
     
 
 
