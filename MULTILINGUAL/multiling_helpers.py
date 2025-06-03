@@ -221,25 +221,23 @@ class JapaneseProcessor(LanguageProcessor):
         # Base NLTK stopwords
         self.stopwords = set()
         
-        ja_stopwords_inner_speech = [
-            # Function words (particles, conjunctions, auxiliaries)
-            "が", "の", "に", "を", "で", "と", "も", "へ", "や", "から", "まで",
-            "ば", "より", "か", "し", "せ", "た", "だ", "う", "つ", "な", "ら", "れ", "ん",
-            "そして", "しかし", "また", "ただし", "および", "おり", "おります", "では",
-            "ながら", "ので", "など", "のみ", "ため", "にて", "として", "とき", "とともに",
-            "と共に", "について", "において", "における", "により", "による", "に対して",
-            "に対する", "に関する", "その他", "その後", "さらに", "でも", "という", "といった",
+        ja_stopwords_inner_speech = ["は", "が", "を", "に", "で", "と", "も", "へ"] #basic particles
+            # # Function words (particles, conjunctions, auxiliaries)
+            # "が", "の", "に", "を", "で", "と", "も", "へ", "や", "から", "まで",
+            # "ば", "より", "か", "し", "せ", "た", "だ", "う", "つ", "な", "ら", "れ", "ん",
+            # "そして", "しかし", "また", "ただし", "および", "おり", "おります", "では",
+            # "ながら", "ので", "など", "のみ", "ため", "にて", "として", "とき", "とともに",
+            # "と共に", "について", "において", "における", "により", "による", "に対して",
+            # "に対する", "に関する", "その他", "その後", "さらに", "でも", "という", "といった",
 
-            # Common auxiliary & polite forms
-            "する", "します", "した", "できます", "できる", "です", "ます", "ました", "ございます",
-            "させていただきます", "くださいまして", "おります",
+            # # Demonstratives (except "this"/"I"-type pronouns)
+            # "ここ", "そこ", "あそこ", "どこ", "これら", "それ", "あれ", "あの", "この", "その",
 
-            # Demonstratives (except "this"/"I"-type pronouns)
-            "ここ", "そこ", "あそこ", "どこ", "これら", "それ", "あれ", "あの", "この", "その",
+            # # Generic determiners / modifiers
+            # "こと", "もの", "こと", "ため", "ところ", "ものの", "よう", "といった", "たち"
 
-            # Generic determiners / modifiers
-            "こと", "もの", "こと", "ため", "ところ", "ものの", "よう", "といった", "たち"
-        ]
+
+        
 
         # Custom stopwords for Japanese inner speech analysis
         custom_stopwords = [
@@ -281,11 +279,11 @@ class JapaneseProcessor(LanguageProcessor):
         text = super().preprocess_text(text)
         
         # Sudachi tokenization with POS filtering
-        tokens = [
-            m.dictionary_form()
-            for m in self.tokenizer_obj.tokenize(text, self.mode)
-            if m.part_of_speech()[0] not in ['助詞', '助動詞']  # Filter particles/auxiliaries
-        ]
+        tokens = []
+        for m in self.tokenizer_obj.tokenize(text, self.mode):
+            pos = m.part_of_speech()[0]
+            if pos != '助詞':
+                tokens.append(m.dictionary_form())
         
         # Stopword removal
         tokens = [t for t in tokens if t not in self.stopwords]
