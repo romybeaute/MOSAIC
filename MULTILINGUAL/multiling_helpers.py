@@ -271,7 +271,7 @@ class JapaneseProcessor(LanguageProcessor):
         self.stopwords.update(custom_stopwords)
 
     # def preprocess_text(self, text):
-    #     """More extensive / aggressive preprocessing pipeline"""
+    #     """More extensive / aggressive preprocessing pipeline (using sudachi)"""
     #     if not self.tokenizer_obj:
     #         return text  # Fallback if Sudachi not installed
             
