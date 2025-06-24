@@ -7,7 +7,7 @@ import os
 import nltk
 import json
 
-# BERTopic and related imports
+
 from bertopic import BERTopic
 from bertopic.representation import KeyBERTInspired, LlamaCPP
 from llama_cpp import Llama
@@ -16,21 +16,19 @@ from sklearn.feature_extraction.text import CountVectorizer
 from umap import UMAP
 from hdbscan import HDBSCAN
 
-# Visualization
+
 import datamapplot
 from huggingface_hub import hf_hub_download
 import matplotlib.pyplot as plt
 
-# --- 1. CONFIGURATION & DEFAULTS ---
+
 st.set_page_config(page_title="Topic Modelling Visualisation for hyperparameter tuning and interpretability", layout="wide")
 
-# --- File and Model paths ---
-# --- NEW: Use a dictionary to manage selectable datasets ---
+
 DATASETS = {
     "High Sensory (HS)": '/Users/rbeaute/Projects/MOSAIC/DATA/multilingual/english/dreamachine/HS_reflections_cleaned.csv',
     "Deep Listening (DL)": '/Users/rbeaute/Projects/MOSAIC/DATA/multilingual/english/dreamachine/DL_reflections_cleaned.csv'
 }
-# --- NEW: Define a file to store persistent run history ---
 HISTORY_FILE = "run_history.json"
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 
@@ -45,9 +43,7 @@ DEFAULT_PARAMS = {
     'bt_nr_topics': 'auto', 'bt_top_n_words': 5
 }
 
-# --- 2. CORE LOGIC & CACHED FUNCTIONS ---
 
-# --- NEW: Functions to handle persistent history ---
 def load_history():
     """Loads the run history from a JSON file."""
     if os.path.exists(HISTORY_FILE):
@@ -70,7 +66,7 @@ def load_llm_model():
     model_path = hf_hub_download(repo_id=model_name_or_path, filename=model_basename, cache_dir="model")
     return Llama(model_path=model_path, n_gpu_layers=-1, n_ctx=4096, stop=["Q:", "\n"], verbose=False)
 
-# --- MODIFIED: Caching is now per-dataset by passing file paths ---
+# caching per-dataset by passing file paths
 @st.cache_data
 def load_precomputed_data(docs_file, embeddings_file):
     """Loads docs and embeddings from specified file paths."""
@@ -134,8 +130,8 @@ def generate_hdbscan_tree(_embeddings, umap_params, hdbscan_params):
     fig = plt.gcf()
     return fig
 
-# --- 3. ONE-TIME DATA PREPARATION ---
-# --- MODIFIED: Function now takes file paths to save to ---
+# ONE-TIME DATA PREPARATION (if pre-computed files do not exist)
+
 def generate_and_save_embeddings(csv_path, docs_file, embeddings_file):
     """
     Performs one-time data preparation and saves to dataset-specific files.
@@ -150,10 +146,14 @@ def generate_and_save_embeddings(csv_path, docs_file, embeddings_file):
         st.info("Download complete.")
 
     with st.spinner('Reading data and splitting into sentences...'):
-        df = pd.read_csv(csv_path)
-        df.dropna(subset=['phen_report_english'], inplace=True)
-        df = df[df.phen_report_english.str.strip() != '']
-        reports = df['phen_report_english'].tolist()
+        df = pd.read_csv(csv_path, quoting=3, on_bad_lines='skip')
+
+        df['reflection_answer'] = df['reflection_answer'].str.replace('"', '', regex=False) # Remove quotes 
+        # df = df[df['reflection_answer'].str.split().str.len() > 1] # delete lines that have only one word
+        df.reset_index(drop=True, inplace=True)
+        reports = df['reflection_answer'].tolist()
+        print(f"Loaded {len(reports)} (translated) documents for BERTopic modeling.")
+
         reports_sentences = [nltk.sent_tokenize(report) for report in reports]
         sentences = [sentence for report in reports_sentences for sentence in report]
 
@@ -173,10 +173,10 @@ def generate_and_save_embeddings(csv_path, docs_file, embeddings_file):
     st.success("Data preparation and saving complete! The app will now reload.")
     st.balloons()
 
-# --- 4. MAIN APP INTERFACE ---
-st.title("Advanced Dreamachine Topic Modelling Dashboard")
+# MAIN APP INTERFACE 
+st.title("Dreamachine Topic Modelling Dashboard for hyperparameter tuning and interpretability")
 
-# --- NEW: Sidebar UI for selecting the dataset ---
+
 st.sidebar.header("Data Source")
 selected_dataset_name = st.sidebar.selectbox(
     "Choose a dataset",
@@ -185,7 +185,6 @@ selected_dataset_name = st.sidebar.selectbox(
 )
 CSV_PATH = DATASETS[selected_dataset_name]
 
-# --- NEW: Generate dynamic filenames for pre-computed files ---
 def get_precomputed_filenames(csv_path):
     base_name = os.path.splitext(os.path.basename(csv_path))[0]
     docs_file = f"precomputed_{base_name}_docs.npy"
@@ -196,14 +195,13 @@ DOCS_FILE, EMBEDDINGS_FILE = get_precomputed_filenames(CSV_PATH)
 
 st.sidebar.info(f"Using dataset: `{os.path.basename(CSV_PATH)}`")
 
-# --- MODIFIED: Check for existence of dataset-specific files ---
 if not os.path.exists(EMBEDDINGS_FILE):
     st.warning(f"Pre-computed data for '{selected_dataset_name}' not found.")
     if st.button(f"Prepare Data for '{selected_dataset_name}' (One-Time Setup)"):
         generate_and_save_embeddings(CSV_PATH, DOCS_FILE, EMBEDDINGS_FILE)
         st.rerun()
 else:
-    # --- Load Data ---
+
     docs, embeddings = load_precomputed_data(DOCS_FILE, EMBEDDINGS_FILE)
 
     # --- Sidebar UI for model parameters ---
@@ -240,7 +238,7 @@ else:
 
     main_tab, hdbscan_tab, history_tab = st.tabs(["Main Results", "HDBSCAN Analysis", "Run History"])
 
-    # --- MODIFIED: Load history from file at the start ---
+    # load history from file at the start 
     if 'history' not in st.session_state:
         st.session_state.history = load_history()
 
@@ -257,7 +255,6 @@ else:
             topic_model, reduced_embeddings, all_labels, num_topics, outlier_perc = perform_topic_modeling(docs, embeddings, get_config_hash(current_config))
             st.session_state.latest_results = (topic_model, reduced_embeddings, all_labels)
 
-            # --- MODIFIED: Add more info to history and save it ---
             history_entry = {
                 "timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "dataset_name": selected_dataset_name,
@@ -267,7 +264,6 @@ else:
                 "llm_labels": [label for label in topic_model.get_topic_info().Name.values if "Unlabelled" not in label and "outlier" not in label]
             }
             st.session_state.history.insert(0, history_entry)
-            # --- NEW: Save history to file after each run ---
             save_history(st.session_state.history)
 
     with main_tab:
@@ -292,7 +288,6 @@ else:
                 tree_fig = generate_hdbscan_tree(embeddings, current_config['umap_params'], current_config['hdbscan_params'])
                 st.pyplot(tree_fig)
 
-    # --- MODIFIED: Improved history display ---
     with history_tab:
         st.header("Run History")
         if not st.session_state.history:
@@ -300,7 +295,6 @@ else:
         else:
             st.info(f"History is loaded from and saved to `{HISTORY_FILE}`.")
             for i, entry in enumerate(st.session_state.history):
-                # Use more descriptive title with timestamp and dataset
                 title = f"Run {len(st.session_state.history) - i} ({entry.get('timestamp', 'N/A')}) on '{entry.get('dataset_name', 'Unknown')}'"
                 with st.expander(title):
                     st.write(f"**Topics Found:** {entry['num_topics']} | **Outlier Percentage:** {entry['outlier_perc']}")
