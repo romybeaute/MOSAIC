@@ -2,7 +2,7 @@
 .mosavenv/
 
 # Ignore Llama model files
-model/
+models/
 *.gguf
 
 # ignore code workspace
@@ -28,3 +28,4 @@ MOSAIC.egg-info/
 DATA/
 .DS_Store
 
+.env
