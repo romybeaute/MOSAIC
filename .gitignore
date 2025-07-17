@@ -29,3 +29,14 @@ DATA/
 .DS_Store
 
 .env
+
+#add any .json files
+*.json
+
+#ignore all the .txt files
+*.txt
+
+#ignore the content of MPE and NDE directories, but not the directories themselves
+MPE/*
+NDE/*
+
