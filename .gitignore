@@ -37,6 +37,9 @@ DATA/
 *.txt
 
 #ignore the content of MPE and NDE directories, but not the directories themselves
-MPE/*
-NDE/*
+MULTILINGUAL/MPE/*
+MULTILINGUAL/NDE/*
+# dont ignore the .gitkeep files in MPE and NDE directories
+!MULTILINGUAL/MPE/.gitkeep
+!MULTILINGUAL/NDE/.gitkeep
 
