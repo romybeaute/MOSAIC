@@ -3,7 +3,7 @@
 # ==============================================================================
 # title           : utils.py
 # description     : Define helpers functions
-#                   Condition can be either HS,DL or HW
+#                   Condition can be either HS,DL or HW (if for Dreamachine dataset)
 # author          : Romy, Beauté (r.beaut@sussex.ac.uk)
 # date            : 2024-07-25
 # ==============================================================================
@@ -21,12 +21,17 @@ import gensim.corpora as corpora
 from gensim.models.coherencemodel import CoherenceModel
 
 
+
 def calculate_coherence(topic_model, data):
-    topics, _ = topic_model.fit_transform(data)
+    # topics, _ = topic_model.fit_transform(data)
+    # topics = topic_model.topics_
+    unique_topics = sorted(list(set(topic_model.topics_)))
+    if -1 in unique_topics:  # Remove outlier topic if present
+        unique_topics.remove(-1)
     
     # get topic words and filter out empty topics
     topic_words = []
-    for topic_id in range(len(set(topics))-1):
+    for topic_id in unique_topics:
         words = [word for word, _ in topic_model.get_topic(topic_id)]
         # only include topics that have at least one non-empty word
         if any(word.strip() for word in words):
@@ -69,6 +74,8 @@ def calculate_coherence(topic_model, data):
     except Exception as e:
         print(f"Error calculating coherence: {str(e)}")
         return float('nan'), float('nan')
+
+
 
 
 
