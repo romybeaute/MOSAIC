@@ -20,7 +20,6 @@ from sudachipy import tokenizer
 from sudachipy import dictionary
 
 
-
 class LanguageProcessor:
     """Base class for language processing"""
     def __init__(self, language):
@@ -104,12 +103,7 @@ class EnglishProcessor(LanguageProcessor):
         # add more specific preprocessing for english (TO-DO later)
         return text
         
-    # def split_sentences(self, reflections):
-    #     '''
-    #     uses NLTK's sentence tokenizer specifically configured for eng
-    #     '''
-    #     return [sent for text in reflections 
-    #             for sent in nltk.sent_tokenize(text, language='english')]
+
 
     def split_sentences(self, reflections):
         '''
@@ -140,13 +134,7 @@ class FrenchProcessor(LanguageProcessor):
         text = super().preprocess_text(text)
         # add more specific preprocessing for french (TO-DO later)
         return text
-        
-    # def split_sentences(self, reflections):
-    #     '''
-    #     uses same NLTK's sentence tokenizer but configured for french language rules
-    #     '''
-    #     return [sent for text in reflections 
-    #             for sent in nltk.sent_tokenize(text, language='french')]
+
 
     def split_sentences(self, reflections):
         '''
@@ -178,12 +166,7 @@ class PortugueseProcessor(LanguageProcessor):
         # add more specific preprocessing for portuguese (TO-DO later)
         return text
         
-    # def split_sentences(self, reflections):
-    #     '''
-    #     uses same NLTK's sentence tokenizer but configured for portuguese language rules
-    #     '''
-    #     return [sent for text in reflections 
-    #             for sent in nltk.sent_tokenize(text, language='portuguese')]
+
     def split_sentences(self, reflections):
         '''
         uses NLTK's sentence tokenizer specifically configured for eng
@@ -270,31 +253,12 @@ class JapaneseProcessor(LanguageProcessor):
         self.stopwords.update(ja_stopwords_inner_speech)
         self.stopwords.update(custom_stopwords)
 
-    # def preprocess_text(self, text):
-    #     """More extensive / aggressive preprocessing pipeline (using sudachi)"""
-    #     if not self.tokenizer_obj:
-    #         return text  # Fallback if Sudachi not installed
-            
-    #     # Basic cleaning from parent class
-    #     text = super().preprocess_text(text)
-        
-    #     # Sudachi tokenization with POS filtering
-    #     tokens = []
-    #     for m in self.tokenizer_obj.tokenize(text, self.mode):
-    #         pos = m.part_of_speech()[0]
-    #         if pos != '助詞':
-    #             tokens.append(m.dictionary_form())
-        
-    #     # Stopword removal
-    #     tokens = [t for t in tokens if t not in self.stopwords]
-        
-    #     return ' '.join(tokens)
+
 
     def preprocess_text(self, text):
         """Fuvery basic preprocessing pipeline, no sudachi tokenization"""
         return super().preprocess_text(text)
     
-
 
 
     def split_sentences(self, reflections):
