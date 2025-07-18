@@ -37,15 +37,15 @@ DEFAULT_PARAMS = {
     'use_vectorizer': True,
     'ngram_min': 1, 'ngram_max': 3,
     'min_df': 1, 'max_df': 1.0,
-    'stopwords': 'english',
+    'stopwords': None,
     'umap_neighbors': 15, 'umap_components': 5, 'umap_min_dist': 0.0,
-    'hdbscan_min_cluster_size': 50, 'hdbscan_min_samples': 50,
-    'bt_nr_topics': 'auto', 'bt_top_n_words': 5
+    'hdbscan_min_cluster_size': 40, 'hdbscan_min_samples': 40,
+    'bt_nr_topics': 'auto', 'bt_top_n_words': 10
 }
 
 
 def load_history():
-    """Loads the run history from a JSON file."""
+    """Loads the run history from a JpriSON file."""
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE, 'r') as f:
             try:
@@ -88,7 +88,7 @@ def perform_topic_modeling(_docs, _embeddings, config_hash):
 
     llm = load_llm_model()
 
-    prompt = "Q:\nI have a topic that contains the following documents:\n[DOCUMENTS]\nThe topic is described by the following keywords: '[KEYWORDS]'.\nBased on the above information, can you give a short label of the topic of at most 5 words?\nA:"
+    prompt = "Q:\nYou are an expert in micro-phenomenology. The following documents are reflections from participants about their minimal phenomenal experiences. I have a topic that contains the following documents:\n[DOCUMENTS]\nThe topic is described by the following keywords: '[KEYWORDS]'.\nBased on the above information, can you give an informative label of the topic of at most 10 words?\nA:"
     representation_model = {"LLM": LlamaCPP(llm, prompt=prompt)}
 
     umap_model = UMAP(random_state=42, metric='cosine', **config['umap_params'])
@@ -228,7 +228,7 @@ else:
     with st.sidebar.expander("BERTopic Parameters"):
         st.text_input("Number of Topics (nr_topics)", key="widget_bt_nr_topics", value=st.session_state.params['bt_nr_topics'], on_change=update_param, args=('bt_nr_topics',))
         st.caption("Enter 'auto' or a number.")
-        st.slider("Top N Words", 3, 20, key="widget_bt_top_n_words", value=st.session_state.params['bt_top_n_words'], on_change=update_param, args=('bt_top_n_words',))
+        st.slider("Top N Words", 5, 25, key="widget_bt_top_n_words", value=st.session_state.params['bt_top_n_words'], on_change=update_param, args=('bt_top_n_words',))
 
     col1, col2 = st.sidebar.columns(2)
     run_button = col1.button("Run Analysis", type="primary")

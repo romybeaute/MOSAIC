@@ -31,14 +31,32 @@ from nltk.tokenize import PunktSentenceTokenizer
 
 
 
-
-
 def split_sentences(reflections):
+    """
+    Split list of texts into sentences and track which sentence belongs to which document.
+    
+    Parameters:
+    -----------
+    reflections : list
+        A list of strings (documents/reflections)
+        
+    Returns:
+    --------
+    tuple
+        (sentences, doc_map) where:
+        - sentences is a list of all sentences from all documents
+        - doc_map is a list of indices indicating which document each sentence belongs to
+    """
     tokenizer = PunktSentenceTokenizer()
     sentences = []
-    for reflection in reflections:
-        sentences += tokenizer.tokenize(reflection)
-    return sentences
+    doc_map = [] 
+    
+    for doc_idx, reflection in enumerate(reflections):
+        doc_sentences = tokenizer.tokenize(reflection)
+        sentences.extend(doc_sentences)
+        doc_map.extend([doc_idx] * len(doc_sentences))
+    
+    return sentences, doc_map
 
 
 def clean_text(text):

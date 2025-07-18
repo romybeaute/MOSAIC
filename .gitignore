@@ -2,14 +2,15 @@
 .mosavenv/
 
 # Ignore Llama model files
-model/
+models/
 *.gguf
 
 # ignore code workspace
 *.code-workspace
 
 # Ignore datamapplot directory
-datamapplot/
+src/datamapplot/
+
 
 # Ignore Python cache files
 __pycache__/
@@ -26,4 +27,19 @@ MOSAIC.egg-info/
 #ignore DATA directory
 DATA/
 .DS_Store
+
+.env
+
+#add any .json files
+*.json
+
+#ignore all the .txt files
+*.txt
+
+#ignore the content of MPE and NDE directories, but not the directories themselves
+MULTILINGUAL/MPE/*
+MULTILINGUAL/NDE/*
+# dont ignore the .gitkeep files in MPE and NDE directories
+!MULTILINGUAL/MPE/.gitkeep
+!MULTILINGUAL/NDE/.gitkeep
 

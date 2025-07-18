@@ -16,6 +16,9 @@ from sentence_transformers import SentenceTransformer
 
 #japanese dependencies 
 from ja_sentence.tokenizer import tokenize
+from sudachipy import tokenizer
+from sudachipy import dictionary
+
 
 class LanguageProcessor:
     """Base class for language processing"""
@@ -39,7 +42,7 @@ class LanguageProcessor:
         }
         return model_map.get(self.language, "paraphrase-multilingual-mpnet-base-v2") # default to paraphrase-multilingual-mpnet-base-v2
     
-    # any class that inherits from LanguageProcessor MUST implement its own version of setup_stopwords and split_sentences !
+    # any class that inherits from LanguageProcessor MUST implement its own version of setup_stopwords and split_sentences, as may differ wrt language analysed!
     def setup_stopwords(self):
         """to be implemented by child classes"""
         raise NotImplementedError
@@ -100,12 +103,22 @@ class EnglishProcessor(LanguageProcessor):
         # add more specific preprocessing for english (TO-DO later)
         return text
         
+
+
     def split_sentences(self, reflections):
         '''
         uses NLTK's sentence tokenizer specifically configured for eng
         '''
-        return [sent for text in reflections 
-                for sent in nltk.sent_tokenize(text, language='english')]
+        sentences = []
+        doc_map = []
+        
+        for doc_idx, text in enumerate(reflections):
+            if isinstance(text, str):
+                doc_sentences = nltk.sent_tokenize(text, language='english')
+                sentences.extend(doc_sentences)
+                doc_map.extend([doc_idx] * len(doc_sentences))
+        
+        return sentences, doc_map
 
 class FrenchProcessor(LanguageProcessor):
     def __init__(self):
@@ -121,13 +134,22 @@ class FrenchProcessor(LanguageProcessor):
         text = super().preprocess_text(text)
         # add more specific preprocessing for french (TO-DO later)
         return text
-        
+
+
     def split_sentences(self, reflections):
         '''
-        uses same NLTK's sentence tokenizer but configured for french language rules
+        uses NLTK's sentence tokenizer specifically configured for eng
         '''
-        return [sent for text in reflections 
-                for sent in nltk.sent_tokenize(text, language='french')]
+        sentences = []
+        doc_map = []
+        
+        for doc_idx, text in enumerate(reflections):
+            if isinstance(text, str):
+                doc_sentences = nltk.sent_tokenize(text, language='french')
+                sentences.extend(doc_sentences)
+                doc_map.extend([doc_idx] * len(doc_sentences))
+        
+        return sentences, doc_map
 
 class PortugueseProcessor(LanguageProcessor):
     def __init__(self):
@@ -144,100 +166,145 @@ class PortugueseProcessor(LanguageProcessor):
         # add more specific preprocessing for portuguese (TO-DO later)
         return text
         
+
     def split_sentences(self, reflections):
         '''
-        uses same NLTK's sentence tokenizer but configured for portuguese language rules
+        uses NLTK's sentence tokenizer specifically configured for eng
         '''
-        return [sent for text in reflections 
-                for sent in nltk.sent_tokenize(text, language='portuguese')]
+        sentences = []
+        doc_map = []
+        
+        for doc_idx, text in enumerate(reflections):
+            if isinstance(text, str):
+                doc_sentences = nltk.sent_tokenize(text, language='portuguese')
+                sentences.extend(doc_sentences)
+                doc_map.extend([doc_idx] * len(doc_sentences))
+        
+        return sentences, doc_map
 
 
 class JapaneseProcessor(LanguageProcessor):
     def __init__(self):
         super().__init__('japanese')
+        self.setup_tokenizer()
         self.setup_stopwords()
-        self.sentence_endings = set(['。', '．', '.', '！', '!', '？', '?', '\n']) # add suppl japanese sentence endings (not added to piepline yet !! => need to see if we need them)
-        
-    def setup_stopwords(self):
+        self.sentence_endings = {'。', '．', '.', '！', '!', '？', '?', '\n'}
+
+    def setup_tokenizer(self):
+        """Initialise Sudachi tokenizer with full dictionary"""
         try:
-            import MeCab
-            self.mecab = MeCab.Tagger("-Owakati")
-            # complete with add common Japanese stopwords
-            self.stopwords = set([
-                # Original particles and markers
-                'の', 'に', 'は', 'を', 'た', 'が', 'で', 'て', 'と',
-                'です', 'ます', 'した', 'ない', 'する', 'ある',
-                'これ', 'それ', 'あれ', 'この', 'その', 'あの',
-                '私', '僕', '俺', '自分',
-                
-                # Thank you expressions
-                'ありがとう',
-                'ありがとうございます',
-                'ありがとうございました',
-                'どうも',
-                'どうもありがとう',
-                'どうもありがとうございます',
-                'どうもありがとうございました',
-                'サンキュー',
-                'サンクス',
-                'お礼',
-                'かたじけない',
-                'Thank you',
-                'Thanks'
-            ])
+            self.tokenizer_obj = dictionary.Dictionary(dict="full").create()
+            self.mode = tokenizer.Tokenizer.SplitMode.C
         except ImportError:
-            print("Please install MeCab: pip install mecab-python3 unidic-lite")
-    
+            print("Error: Install Sudachi - pip install sudachipy sudachidict_full")
+            self.tokenizer_obj = None
+
+    def setup_stopwords(self):
+        """Combine NLTK, custom, and domain-specific stopwords"""
+        # Base NLTK stopwords
+        self.stopwords = set()
+        
+        ja_stopwords_inner_speech = ["は", "が", "を", "に", "で", "と", "も", "へ"] #basic particles
+            # # Function words (particles, conjunctions, auxiliaries)
+            # "が", "の", "に", "を", "で", "と", "も", "へ", "や", "から", "まで",
+            # "ば", "より", "か", "し", "せ", "た", "だ", "う", "つ", "な", "ら", "れ", "ん",
+            # "そして", "しかし", "また", "ただし", "および", "おり", "おります", "では",
+            # "ながら", "ので", "など", "のみ", "ため", "にて", "として", "とき", "とともに",
+            # "と共に", "について", "において", "における", "により", "による", "に対して",
+            # "に対する", "に関する", "その他", "その後", "さらに", "でも", "という", "といった",
+
+            # # Demonstratives (except "this"/"I"-type pronouns)
+            # "ここ", "そこ", "あそこ", "どこ", "これら", "それ", "あれ", "あの", "この", "その",
+
+            # # Generic determiners / modifiers
+            # "こと", "もの", "こと", "ため", "ところ", "ものの", "よう", "といった", "たち"
+
+
+        
+
+        # Custom stopwords for Japanese inner speech analysis
+        custom_stopwords = [
+            # Greetings/Thanks
+            "ありがとう", "よろしく", "お願いします", "失礼します", "すみません",
+            "ありがとうございました", "ありがとうございます",  # Formal thanks
+            "感謝", "恐縮",  # "Gratitude", "Humble apology"
+
+            # Research Feedback Phrases
+            "面白い", "興味深い", "楽しかった",  # "Interesting", "Fascinating", "Enjoyable"
+            "勉強になりました", "参考になりました",  # "Was educational", "Was helpful"
+            "応援してます", "頑張ってください",  # "Rooting for you", "Do your best"
+            "素晴らしい", "期待してます",  # "Wonderful", "Looking forward to"
+            "成果", "成功",  # "Results", "Success"
+
+            # Apologetic/Politeness
+            "申し訳ありません", "失礼いたしました",  # Formal apologies
+            "お手数", "ご容赦",  # "Trouble", "Forgiveness"
+            "恐れ入ります", "お邪魔します",  # Polite phrases
+
+            # Research Artifacts
+            "アンケート", "調査", "研究", "質問", "回答",
+            "論文", "実験", "分析",  # "Paper", "Experiment", "Analysis"
+
+            # Honorifics
+            "です", "ます", "ました", "ございます",
+            "させていただきます", "くださいまして"  # Humble forms
+        ]
+
+        self.stopwords.update(ja_stopwords_inner_speech)
+        self.stopwords.update(custom_stopwords)
+
+
+
     def preprocess_text(self, text):
-        # apply basic preprocessing as defined in parent class 
-        text = super().preprocess_text(text)
-        # add more specific preprocessing for japanese (TO-DO later)
-        return text
-            
+        """Fuvery basic preprocessing pipeline, no sudachi tokenization"""
+        return super().preprocess_text(text)
+    
+
+
     def split_sentences(self, reflections):
         '''
         uses ja-sentence tokenizer for Japanese sentence splitting
-        and additional custom splitting for periods
+        and returns document mapping information
         '''
         try:
             from ja_sentence.tokenizer import tokenize
             sentences = []
-            for text in reflections:
-                if isinstance(text, str):  # Check if text is string
-                    paragraphs = text.split('\n')
-                    for paragraph in paragraphs:
-                        if paragraph.strip():  # Only process non-empty paragraphs
-                            # get initial splits from ja-sentence
-                            initial_splits = tokenize(paragraph)
-                            for split in initial_splits:
-                                # Create a regex pattern from all sentence endings
-                                pattern = f"[{''.join(self.sentence_endings)}]"
-                                further_splits = [s.strip() for s in re.split(pattern, split) if s.strip()]
-                                sentences.extend(further_splits)
-                                # sentences.extend(split.split('。'))
-                            
-            return sentences
+            doc_map = []  # track which document each sentence belongs to
+            
+            for doc_idx, text in enumerate(reflections):
+                if isinstance(text, str):  # check if text is string
+                    doc_sentences = tokenize(text)
+                    sentences.extend(doc_sentences)
+                    doc_map.extend([doc_idx] * len(doc_sentences))
+            
+            return sentences, doc_map
         except ImportError:
             print("Please install ja-sentence: pip install ja-sentence")
-            return reflections
+            return reflections, list(range(len(reflections)))
+    
+
+
 
 class TopicModeler:
     """Class for topic modeling in multiple languages"""
-    def __init__(self, language_processor):
+    def __init__(self, language_processor, use_stopwords=True):
         """
         Initialize topic modeler with specific language processor
         Args:
             language_processor: Instance of LanguageProcessor for specific language
+            use_stopwords: Whether to use stopwords in vectorizer (default to True)
         """
         self.language_processor = language_processor
+        self.use_stopwords = use_stopwords
         self.embedding_model = SentenceTransformer(
             self.language_processor.sentence_transformer_model
         )
         
     def prepare_vectorizer(self, ngram_range=(1,2), max_df=0.9, min_df=2):
+        stopwords = list(self.language_processor.stopwords) if self.use_stopwords else None
         return CountVectorizer(
             ngram_range=ngram_range,
-            stop_words=list(self.language_processor.stopwords),
+            stop_words=stopwords,
             max_df=max_df,
             min_df=min_df
         )
