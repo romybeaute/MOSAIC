@@ -1,5 +1,5 @@
 # Ignore Python virtual environment
-.mosavenv/
+.mosaicvenv/
 
 # Ignore Llama model files
 models/
