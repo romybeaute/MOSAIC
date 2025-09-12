@@ -4,7 +4,7 @@ aiosignal==1.3.2
 altair==5.5.0
 annotated-types==0.7.0
 anyio==4.8.0
-appnope @ file:///home/conda/feedstock_root/build_artifacts/appnope_1733332318622/work
+# appnope @ file:///home/conda/feedstock_root/build_artifacts/appnope_1733332318622/work
 argon2-cffi==23.1.0
 argon2-cffi-bindings==21.2.0
 arrow==1.3.0
@@ -23,13 +23,13 @@ catalogue==2.0.10
 certifi==2025.6.15
 cffi==1.17.1
 charset-normalizer==3.4.2
-click @ file:///home/conda/feedstock_root/build_artifacts/click_1734858813237/work
+# click @ file:///home/conda/feedstock_root/build_artifacts/click_1734858813237/work
 cloudpathlib==0.21.1
 cloudpickle==3.1.1
-colorama @ file:///home/conda/feedstock_root/build_artifacts/colorama_1733218098505/work
+# colorama @ file:///home/conda/feedstock_root/build_artifacts/colorama_1733218098505/work
 colorcet==3.1.0
 colorspacious==1.1.2
-comm @ file:///home/conda/feedstock_root/build_artifacts/comm_1733502965406/work
+# comm @ file:///home/conda/feedstock_root/build_artifacts/comm_1733502965406/work
 confection==0.1.5
 contourpy==1.3.1
 cycler==0.12.1
@@ -38,14 +38,14 @@ dask==2024.12.1
 dask-expr==1.1.21
 datamapplot==0.6.3
 datashader==0.17.0
-debugpy @ file:///Users/runner/miniforge3/conda-bld/debugpy_1737269786834/work
+# debugpy @ file:///Users/runner/miniforge3/conda-bld/debugpy_1737269786834/work
 decorator==5.2.1
 defusedxml==0.7.1
 dill==0.3.8
 diskcache==5.6.3
 distributed==2024.12.1
 et-xmlfile==1.1.0
-exceptiongroup @ file:///home/conda/feedstock_root/build_artifacts/exceptiongroup_1733208806608/work
+# exceptiongroup @ file:///home/conda/feedstock_root/build_artifacts/exceptiongroup_1733208806608/work
 executing==2.2.0
 fastjsonschema==2.21.1
 filelock==3.18.0
@@ -54,7 +54,7 @@ fqdn==1.5.1
 frozenlist==1.5.0
 fsspec==2025.5.1
 fugashi==1.4.0
-gensim==4.3.3
+# gensim==4.3.3
 gitdb==4.0.12
 GitPython==3.1.44
 google-ai-generativelanguage==0.6.15
@@ -75,9 +75,9 @@ httpx==0.28.1
 huggingface-hub==0.33.0
 idna==3.10
 imageio==2.37.0
-importlib_metadata @ file:///home/conda/feedstock_root/build_artifacts/importlib-metadata_1737420181517/work
+# importlib_metadata @ file:///home/conda/feedstock_root/build_artifacts/importlib-metadata_1737420181517/work
 importlib_resources==6.5.2
-ipykernel @ file:///Users/runner/miniforge3/conda-bld/ipykernel_1719845458456/work
+# ipykernel @ file:///Users/runner/miniforge3/conda-bld/ipykernel_1719845458456/work
 ipython==8.32.0
 ipywidgets==8.1.5
 isoduration==20.11.0
@@ -93,7 +93,7 @@ jupyter==1.1.1
 jupyter-console==6.6.3
 jupyter-events==0.12.0
 jupyter-lsp==2.2.5
-jupyter_client @ file:///home/conda/feedstock_root/build_artifacts/jupyter_client_1733440914442/work
+# jupyter_client @ file:///home/conda/feedstock_root/build_artifacts/jupyter_client_1733440914442/work
 jupyter_core==5.7.2
 jupyter_server==2.15.0
 jupyter_server_terminals==0.5.3
@@ -129,14 +129,14 @@ narwhals==1.43.1
 nbclient==0.10.2
 nbconvert==7.16.6
 nbformat==5.10.4
-nest_asyncio @ file:///home/conda/feedstock_root/build_artifacts/nest-asyncio_1733325553580/work
+# nest_asyncio @ file:///home/conda/feedstock_root/build_artifacts/nest-asyncio_1733325553580/work
 networkx==3.5
-nltk @ file:///home/conda/feedstock_root/build_artifacts/nltk_1734309924703/work
+# nltk @ file:///home/conda/feedstock_root/build_artifacts/nltk_1734309924703/work
 notebook==7.3.2
 notebook_shim==0.2.4
 numba==0.61.2
-numpy==1.26.4
-openpyxl @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_96hhik4ygv/croot/openpyxl_1721752931204/work
+# numpy==1.26.4
+# openpyxl @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_96hhik4ygv/croot/openpyxl_1721752931204/work
 overrides==7.7.0
 packaging==25.0
 pandas==2.3.0
@@ -145,7 +145,7 @@ param==2.2.0
 parso==0.8.4
 partd==1.4.2
 pexpect==4.9.0
-pickleshare @ file:///home/conda/feedstock_root/build_artifacts/pickleshare_1733327343728/work
+# pickleshare @ file:///home/conda/feedstock_root/build_artifacts/pickleshare_1733327343728/work
 pillow==11.2.1
 platformdirs==4.3.6
 plotly==6.1.2
@@ -155,7 +155,7 @@ prompt_toolkit==3.0.50
 propcache==0.3.1
 proto-plus==1.26.1
 protobuf==5.29.5
-psutil @ file:///Users/runner/miniforge3/conda-bld/psutil_1735327389428/work
+# psutil @ file:///Users/runner/miniforge3/conda-bld/psutil_1735327389428/work
 ptyprocess==0.7.0
 pure_eval==0.2.3
 pyarrow==19.0.1
@@ -177,7 +177,7 @@ python-dotenv==1.1.0
 python-json-logger==3.2.1
 pytz==2025.2
 PyYAML==6.0.2
-pyzmq @ file:///Users/runner/miniforge3/conda-bld/pyzmq_1738270999035/work
+# pyzmq @ file:///Users/runner/miniforge3/conda-bld/pyzmq_1738270999035/work
 rcssmin==1.2.1
 referencing==0.36.2
 regex==2024.11.6
@@ -197,7 +197,7 @@ Send2Trash==1.8.3
 sentence-transformers==4.1.0
 shellingham==1.5.4
 six==1.17.0
-smart_open @ file:///home/conda/feedstock_root/build_artifacts/smart_open_1734485076778/work/dist
+# smart_open @ file:///home/conda/feedstock_root/build_artifacts/smart_open_1734485076778/work/dist
 smmap==5.0.2
 sniffio==1.3.1
 sortedcontainers==2.4.0
@@ -223,7 +223,7 @@ tokenizers==0.21.1
 toml==0.10.2
 toolz==1.0.0
 torch==2.7.1
-tornado @ file:///Users/runner/miniforge3/conda-bld/tornado_1732615936501/work
+# tornado @ file:///Users/runner/miniforge3/conda-bld/tornado_1732615936501/work
 tqdm==4.67.1
 traitlets==5.14.3
 transformers==4.52.4
@@ -245,10 +245,10 @@ webcolors==24.11.1
 webencodings==0.5.1
 websocket-client==1.8.0
 widgetsnbextension==4.0.13
-wrapt @ file:///Users/runner/miniforge3/conda-bld/wrapt_1736869493930/work
+# wrapt @ file:///Users/runner/miniforge3/conda-bld/wrapt_1736869493930/work
 xarray==2025.1.2
 xxhash==3.5.0
 xyzservices==2025.1.0
 yarl==1.19.0
 zict==3.0.0
-zipp @ file:///home/conda/feedstock_root/build_artifacts/zipp_1732827521216/work
+# zipp @ file:///home/conda/feedstock_root/build_artifacts/zipp_1732827521216/work
