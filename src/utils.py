@@ -68,7 +68,7 @@ def calculate_coherence(topic_model, data):
         )
         coherence_score_umass = coherence_model_umass.get_coherence()
         
-        print(f"Number of valid topics used for coherence calculation: {len(topic_words)}")
+        print(f"Number of valid topics used for coherence calculation (excludes outliers -1): {len(topic_words)}")
         return coherence_score, coherence_score_umass
         
     except Exception as e:

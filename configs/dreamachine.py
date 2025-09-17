@@ -11,7 +11,7 @@
 class DreamachineConfig:
     def __init__(self):
         from nltk.corpus import stopwords
-        self.reduced_custom_stopwords = {'thank', 'thanks', 'thank you'}
+        self.reduced_custom_stopwords = {'thank', 'thanks', 'thank you','Thank'}
         self.stop_words = set(stopwords.words('english'))
         self.extended_stop_words = self.stop_words.union(self.reduced_custom_stopwords)
         
@@ -21,7 +21,7 @@ class DreamachineConfig:
         self.ngram_range = (1, 2)
         self.max_df = 0.95
         self.min_df = 3
-        self.top_n_words = 10
+        self.top_n_words = 5
 
 
 
