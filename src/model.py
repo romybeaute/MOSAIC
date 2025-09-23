@@ -3,11 +3,10 @@ from sentence_transformers import SentenceTransformer
 from umap.umap_ import UMAP
 from hdbscan import HDBSCAN
 
+from src.utils import calculate_coherence, get_params_grid,calculate_embedding_coherence
 
-from src.utils import calculate_coherence, get_params_grid
 
-
-def setup_model(umap_model, hdbscan_model, embedding_model, vectorizer_model, top_n_words=10, nr_topics="auto"):
+def setup_model(umap_model, hdbscan_model, embedding_model, vectorizer_model, top_n_words, nr_topics="auto"):
     return BERTopic(
         umap_model=umap_model,
         hdbscan_model=hdbscan_model,
@@ -39,9 +38,9 @@ def setup_hdbscan(min_cluster_size, min_samples):
     )
 
 
-def run_bertopic(data, vectorizer_model, embedding_model, n_neighbors, n_components, min_dist, min_cluster_size, min_samples, top_n_words=10, nr_topics="auto"):
+def run_bertopic(data, embeddings, vectorizer_model, embedding_model, n_neighbors, n_components, min_dist, min_cluster_size, min_samples, top_n_words, nr_topics="auto",random_seed=42):
     """Run BERTopic model with given parameters."""
-    umap_model = setup_umap(n_neighbors, n_components, min_dist)
+    umap_model = setup_umap(n_neighbors, n_components, min_dist,random_seed=random_seed)
     hdbscan_model = setup_hdbscan(min_cluster_size, min_samples)
     
     model = setup_model(
@@ -53,7 +52,8 @@ def run_bertopic(data, vectorizer_model, embedding_model, n_neighbors, n_compone
         nr_topics=nr_topics
     )
 
-    topics, _ = model.fit_transform(data)
+    topics, _ = model.fit_transform(data,embeddings)
     coherence_score, coherence_score_umass = calculate_coherence(model, data)
+    embedding_coherence = calculate_embedding_coherence(model, data, embeddings)
     
-    return model, topics, coherence_score, coherence_score_umass
+    return model, topics, coherence_score, coherence_score_umass, embedding_coherence

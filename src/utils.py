@@ -19,6 +19,55 @@
 from gensim.corpora.dictionary import Dictionary
 import gensim.corpora as corpora
 from gensim.models.coherencemodel import CoherenceModel
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+import pandas as pd
+import itertools
+
+def calculate_embedding_coherence(model, docs, embeddings):
+    """
+    Calculate the average intra-topic cosine similarity for a BERTopic model.
+
+    Args:
+        model (BERTopic): A fitted BERTopic model.
+        docs (list of str): The original documents used to fit the model.
+        embeddings (np.ndarray): The document embeddings for the training data.
+
+    Returns:
+        float: The mean coherence score across all topics.
+    """
+    # Group documents and their embeddings by topic
+    # The original documents ('docs') must be used here to match the length of model.topics_
+    documents_df = pd.DataFrame({"Doc": docs, "Topic": model.topics_})
+    
+    # Ensure embeddings are a numpy array
+    if not isinstance(embeddings, np.ndarray):
+        embeddings = np.array(embeddings)
+        
+    documents_df['Embedding'] = list(embeddings)
+
+    # Calculate coherence for each topic
+    topic_coherence_scores = []
+    for topic_id in documents_df['Topic'].unique():
+        if topic_id == -1:  # Skip outlier topic
+            continue
+        
+        topic_docs_df = documents_df[documents_df['Topic'] == topic_id]
+        
+        if len(topic_docs_df) < 2: # Cannot calculate coherence for a single document
+            continue
+
+        topic_embeddings = np.vstack(topic_docs_df['Embedding'].values)
+        
+        # Calculate pairwise similarity and get the mean of the upper triangle
+        similarity_matrix = cosine_similarity(topic_embeddings)
+        upper_triangle_mean = np.mean(similarity_matrix[np.triu_indices(len(topic_docs_df), k=1)])
+        topic_coherence_scores.append(upper_triangle_mean)
+
+    # Return the mean coherence across all topics, or 0.0 if no valid topics found
+    return np.mean(topic_coherence_scores) if topic_coherence_scores else 0.0
+
+
 
 
 
@@ -83,7 +132,7 @@ def calculate_coherence(topic_model, data):
 ################ HYPERPARAMETERS ############################################
 #############################################################################
 
-import itertools
+
 
 
 def get_params_grid(dataset_config, condition,reduced=False): #reduced set to true to test with reduced hyperparams combnations
