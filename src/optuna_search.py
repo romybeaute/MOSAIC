@@ -19,8 +19,8 @@ import csv
 import optuna
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import CountVectorizer
+from optuna.samplers import TPESampler
 
-# --- Ensure project root is in the path to import custom modules ---
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(script_dir)
 sys.path.append(project_root)
@@ -28,7 +28,6 @@ sys.path.append(project_root)
 from src.model import run_bertopic
 from src.preprocessor import split_sentences
 
-# --- Environment variable setup ---
 os.environ["TOKENIZERS_PARALLELISM"] = "True"
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["HF_DATASETS_OFFLINE"] = "1"
@@ -39,15 +38,14 @@ class OptunaSearchBERTopic:
         self.condition = condition
         self.use_sentences = use_sentences
         self.top_n_words = 15
+        self.random_seed = 42
 
-        # --- Load appropriate dataset config ---
         if dataset == "dreamachine":
             from configs.dreamachine2 import config # Import config instance
             self.dataset_config = config
         else:
             raise ValueError(f"Unrecognised dataset: {dataset}")
         
-        # --- Pre-calculate these to be used in the objective function ---
         self.data = None
         self.embeddings = None
         self.vectorizer_model = None
@@ -61,12 +59,15 @@ class OptunaSearchBERTopic:
         self.results_path = os.path.join(
             f"EVAL/{self.dataset}", 
             f"OPTUNA_results_{self.condition}"
-            + ('_sentences' if self.use_sentences else '')
+            + ('_sentences_seeded' if self.use_sentences else '')
             + '.csv'
+        )
+        self.study_db_path = os.path.join(
+            f"EVAL/{self.dataset}",
+            f"optuna_study_{self.condition}.db"
         )
 
     def setup_models(self):
-        """Initialize models using dataset specific configs."""
         self.embedding_model = SentenceTransformer(self.dataset_config.transformer_model)
         self.vectorizer_model = CountVectorizer(
             ngram_range=self.dataset_config.ngram_range,
@@ -77,7 +78,6 @@ class OptunaSearchBERTopic:
         )
 
     def load_data(self):
-        """Load and preprocess data."""
         df_reports = pd.read_csv(self.data_path, sep=',')['cleaned_reflection'].dropna().reset_index(drop=True)
         
         if self.use_sentences:
@@ -95,7 +95,7 @@ class OptunaSearchBERTopic:
         return df_reports
 
     def initialize_results_file(self):
-        """Initialize results CSV with headers."""
+        """init results CSV with headers."""
         os.makedirs(os.path.dirname(self.results_path), exist_ok=True)
         if not os.path.exists(self.results_path):
             # The 'value' column is now explicitly named 'embedding_coherence' for clarity
@@ -109,37 +109,37 @@ class OptunaSearchBERTopic:
         """Define the hyperparameter search space for Optuna based on the condition."""
         if self.condition == 'DL':
             params = {
-                'n_components': trial.suggest_int('n_components', 2, 10),
+                'n_components': trial.suggest_int('n_components', 5, 15),
                 'n_neighbors': trial.suggest_int('n_neighbors', 5, 15),
-                'min_dist': trial.suggest_float('min_dist', 0.0, 0.2, step=0.05),
-                'min_cluster_size': trial.suggest_int('min_cluster_size', 3, 15),
-                'min_samples': trial.suggest_int('min_samples', 2, 10),
+                'min_dist': trial.suggest_float('min_dist', 0.0, 0.05,step=0.005),
+                'min_cluster_size': trial.suggest_int('min_cluster_size', 10, 15),
+                'min_samples': trial.suggest_int('min_samples', 5, 10),
             }
         elif self.condition == 'HS':
             params = {
-                'n_components': trial.suggest_int('n_components', 5, 20),
+                'n_components': trial.suggest_int('n_components', 10, 30),
                 'n_neighbors': trial.suggest_int('n_neighbors', 10, 30),
-                'min_dist': trial.suggest_float('min_dist', 0.0, 0.2, step=0.05),
-                'min_cluster_size': trial.suggest_int('min_cluster_size', 5, 20),
-                'min_samples': trial.suggest_int('min_samples', 5, 15),
+                'min_dist': trial.suggest_float('min_dist', 0.0, 0.05,step=0.005),
+                'min_cluster_size': trial.suggest_int('min_cluster_size', 10, 15),
+                'min_samples': trial.suggest_int('min_samples', 5, 10),
             }
         else: # Generic default
             params = {
                 'n_components': trial.suggest_int('n_components', 5, 25),
                 'n_neighbors': trial.suggest_int('n_neighbors', 10, 35),
-                'min_dist': trial.suggest_float('min_dist', 0.0, 0.2, step=0.05),
+                'min_dist': trial.suggest_float('min_dist', 0.0, 0.05,step=0.005),
                 'min_cluster_size': trial.suggest_int('min_cluster_size', 10, 50),
                 'min_samples': trial.suggest_int('min_samples', 5, 25),
             }
         return params
 
     def objective(self, trial):
-        """The objective function for Optuna to optimize."""
+        """The objective function for Optuna to optimiae."""
         try:
-            # 1. Suggest hyperparameters
+            # suggest hyperparameters
             params = self._define_search_space(trial)
 
-            # 2. Run the BERTopic model
+            # run the BERTopic model
             model, topics, coherence_score, coherence_score_umass, embedding_coherence = run_bertopic(
                 data=self.data,
                 embeddings=self.embeddings,
@@ -150,21 +150,21 @@ class OptunaSearchBERTopic:
                 min_dist=params['min_dist'],
                 min_cluster_size=params['min_cluster_size'],
                 min_samples=params['min_samples'],
-                top_n_words=self.top_n_words
+                top_n_words=self.top_n_words,
+                random_seed=self.random_seed
             )
 
-            # 3. Store additional metrics in the trial for later analysis
+            # store additional metrics in the trial for later analysis
             trial.set_user_attr('coherence_score', coherence_score)
             trial.set_user_attr('coherence_score_umass', coherence_score_umass)
             trial.set_user_attr('n_topics', len(set(topics)))
             
-            # 4. Return the metric to be maximized
-            # This is the value Optuna will work to maximize.
+            # return the metric to be maximiaed (the value Optuna will work to maximise)
             return embedding_coherence
 
         except Exception as e:
             print(f"Error in trial {trial.number} with parameters {trial.params}: {str(e)}")
-            # Tell Optuna this trial failed so it can be ignored
+            # tell Optuna this trial failed so it can be ignored
             raise optuna.exceptions.TrialPruned()
 
     def save_callback(self, study, trial):
@@ -175,7 +175,7 @@ class OptunaSearchBERTopic:
         # Prepare data for CSV
         result_row = [
             trial.number,
-            trial.value,  # This is the embedding_coherence score returned from the objective function
+            trial.value,  # embedding_coherence score returned from the objective function
             trial.params['n_components'],
             trial.params['n_neighbors'],
             trial.params['min_dist'],
@@ -192,17 +192,37 @@ class OptunaSearchBERTopic:
             writer.writerow(result_row)
 
     def run_optimization(self, n_trials=100):
-        """Execute the Optuna optimization."""
+        """Optuna optimisation."""
         self.data = self.load_data()
         print("Generating sentence embeddings...")
         self.embeddings = self.embedding_model.encode(self.data, show_progress_bar=True)
         print("Embeddings generated.")
 
         self.initialize_results_file()
-
-        # Create a study object and specify the direction as 'maximize'
-        study = optuna.create_study(direction='maximize')
         
+
+        # Define a unique name for the study and the storage location
+        study_name = f"bertopic-{self.condition}-optimization"
+        storage_name = f"sqlite:///{self.study_db_path}"
+
+
+        # Create or Load study object and specify the direction as 'maximize'
+        try:
+            #try to load an existing study
+            study = optuna.load_study(study_name=study_name, storage=storage_name)
+            print(f"Loaded existing study '{study_name}' from '{storage_name} (with {len(study.trials)} trials)'")
+        except KeyError:
+            #if study doesn't exist, create a new one
+            print(f"Creating new study '{study_name}' at '{storage_name}'")
+            sampler = TPESampler(seed=self.random_seed) #create sampler only when create new study (reproduicibility)
+
+            # study = optuna.create_study(direction='maximize',sampler=sampler)
+            study = optuna.create_study(
+                study_name=study_name,
+                storage=storage_name,
+                sampler=sampler,
+                direction='maximize')
+                
         start_time = time.time()
         study.optimize(
             self.objective, 
@@ -212,7 +232,7 @@ class OptunaSearchBERTopic:
         
         print(f"\nOptimization completed in {time.time() - start_time:.2f} seconds")
 
-        # Print the best results
+        # Print best results
         print("\n--- Best Trial Found ---")
         best_trial = study.best_trial
         print(f"  🏆 Score (Embedding Coherence): {best_trial.value:.4f}")
@@ -237,4 +257,4 @@ if __name__ == "__main__":
     
     optuna_search.run_optimization(n_trials=args.n_trials)
 
-    # python src/optuna_search.py --dataset dreamachine --condition DL --sentences --n_trials 2
+    # python src/optuna_search.py --dataset dreamachine --condition HS --sentences --n_trials 2
