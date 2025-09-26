@@ -41,7 +41,7 @@ class OptunaSearchBERTopic:
         self.random_seed = 42
 
         if dataset == "dreamachine":
-            from configs.dreamachine2 import config # Import config instance
+            from configs.dreamachine2 import config 
             self.dataset_config = config
         else:
             raise ValueError(f"Unrecognised dataset: {dataset}")
@@ -56,16 +56,21 @@ class OptunaSearchBERTopic:
     def setup_paths(self):
         """Setup data and results paths based on dataset and condition."""
         self.data_path = os.path.join("DATA", f"{self.dataset}/{self.condition}_reflections_APIcleaned.csv")
+        sanitized_model_name = self.dataset_config.transformer_model.replace('/', '_')
+
         self.results_path = os.path.join(
             f"EVAL/{self.dataset}", 
             f"OPTUNA_results_{self.condition}"
-            + ('_sentences_seeded' if self.use_sentences else '')
-            + '.csv'
+            + ('_sentences' if self.use_sentences else '')
+            + f'_{sanitized_model_name}.csv'
         )
+        
         self.study_db_path = os.path.join(
             f"EVAL/{self.dataset}",
-            f"optuna_study_{self.condition}.db"
+            f"optuna_study_{self.condition}_{sanitized_model_name}.db"
         )
+        print(f"Path to Optuna DB: {self.study_db_path}")
+
 
     def setup_models(self):
         self.embedding_model = SentenceTransformer(self.dataset_config.transformer_model)
@@ -105,8 +110,9 @@ class OptunaSearchBERTopic:
                 'coherence_score', 'coherence_score_umass', 'n_topics'
             ]).to_csv(self.results_path, index=False)
 
+
     def _define_search_space(self, trial):
-        """Define the hyperparameter search space for Optuna based on the condition."""
+        """Define the hyperparameter search space for Optuna based on the condition.This space is for 0.6B model"""
         if self.condition == 'DL':
             params = {
                 'n_components': trial.suggest_int('n_components', 5, 15),
@@ -132,6 +138,8 @@ class OptunaSearchBERTopic:
                 'min_samples': trial.suggest_int('min_samples', 5, 25),
             }
         return params
+
+
 
     def objective(self, trial):
         """The objective function for Optuna to optimiae."""
@@ -257,4 +265,5 @@ if __name__ == "__main__":
     
     optuna_search.run_optimization(n_trials=args.n_trials)
 
-    # python src/optuna_search.py --dataset dreamachine --condition HS --sentences --n_trials 2
+    # python src/optuna_search.py --dataset dreamachine --condition HS --sentences --n_trials 10   
+    # python src/optuna_search.py --dataset dreamachine --condition DL --sentences --n_trials 10
