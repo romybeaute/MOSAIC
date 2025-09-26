@@ -248,3 +248,59 @@ class PhenoLabeler(BaseRepresentation):
             to_replace += f"- {doc}\n"
         prompt = prompt.replace("[SENTENCES]", to_replace)
         return prompt
+
+
+
+
+
+
+
+from bertopic.representation import BaseRepresentation
+import re
+
+class MultiKeywordLLM(BaseRepresentation):
+    """
+    Other implementaition version of a custom representation model for generating labels with more keyword sets
+    """
+    def __init__(self, llm, prompt, pipeline_kwargs,nr_docs=10):
+        super().__init__()
+        self.llm = llm
+        self.prompt = prompt
+        self.pipeline_kwargs = pipeline_kwargs
+        self.nr_docs = nr_docs 
+
+    def extract_topics(self, topic_model, documents, c_tf_idf, topics):
+        """
+        This is the main function. For each topic, it will build a custom
+        prompt and generate a new label.
+        """
+        # Get the topic info DataFrame that contains KeyBERT and MMR keywords
+        topic_info_df = topic_model.get_topic_info()
+        
+        # Create the new labels
+        new_labels = {}
+        for index, row in topic_info_df.iterrows():
+            topic_id = row['Topic']
+            if topic_id == -1:
+                continue
+
+            # Get documents and all keyword sets for the current topic
+            docs_to_use = topic_model.representative_docs_[topic_id][:self.nr_docs]
+            docs = "\n".join(docs_to_use)
+
+            ctfidf_kws = ", ".join([word for word, score in topic_model.get_topic(topic_id)])
+            keybert_kws = ", ".join(row['KeyBERT'])
+            mmr_kws = ", ".join(row['MMR'])
+            
+            # Fill in our detailed prompt
+            filled_prompt = self.prompt.replace("[DOCUMENTS]", docs)
+            filled_prompt = filled_prompt.replace("[KEYWORDS]", ctfidf_kws)
+            filled_prompt = filled_prompt.replace("[KEYBERT_KEYWORDS]", keybert_kws)
+            filled_prompt = filled_prompt.replace("[MMR_KEYWORDS]", mmr_kws)
+
+            # Get the new label from the LLM
+            response = self.llm(prompt=filled_prompt, **self.pipeline_kwargs)
+            label = response['choices'][0]['text'].strip()
+            new_labels[topic_id] = re.sub(r'^\d+\.\s*', '', label)
+        
+        return new_labels
