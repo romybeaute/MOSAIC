@@ -59,6 +59,32 @@ def split_sentences(reflections):
     return sentences, doc_map
 
 
+def preproc(df_reports,sentences=True,min_words=2):
+    #divide in sentences if needed
+    if sentences:
+        df_reports = split_sentences(df_reports)[0]
+    print(f"\nSuccessfully loaded and processed {len(df_reports)} sentences.")
+
+    #remove sentences defined as too short
+    for i, sentence in enumerate(df_reports):
+        if len(sentence.split()) < min_words:
+            print(sentence)
+
+    # #print the amount of sentences that have less than min_words words
+    # short_sentences = [sentence for sentence in df_reports if len(sentence.split()) < min_words]
+    # print(f"\nThere are {len(short_sentences)} sentences with less than {min_words} words.\n")
+
+    # Remove sentences with less than min_words
+    df_reports = [sentence for sentence in df_reports if len(sentence.split()) >= min_words]
+    print(f"After removing short sentences, {len(df_reports)} sentences remain.")
+
+    # Remove duplicate sentences if any
+    seen = set()
+    df_reports = [s for s in df_reports if not (s in seen or seen.add(s))]
+    print(f"After removing duplicates, {len(df_reports)} remain.")
+    return df_reports
+
+
 def clean_text(text):
     # to lowercase
     text = text.lower()
