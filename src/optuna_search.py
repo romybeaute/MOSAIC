@@ -26,7 +26,7 @@ project_root = os.path.dirname(script_dir)
 sys.path.append(project_root)
 
 from src.model import run_bertopic
-from src.preprocessor import split_sentences
+from preproc.preprocessor import split_sentences
 
 os.environ["TOKENIZERS_PARALLELISM"] = "True"
 os.environ["HF_HUB_OFFLINE"] = "1"
