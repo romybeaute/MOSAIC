@@ -14,4 +14,4 @@
 module load python/3.12.5 
 source ~/.mosaicvenv/bin/activate # activate the virtual environment named mosavenv
 
-python src/optuna_search.py --dataset dreamachine --condition DL --sentences --n_trials 100
+python optuna_search.py --dataset dreamachine --condition DL --sentences --n_trials 100

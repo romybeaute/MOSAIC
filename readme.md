@@ -7,9 +7,11 @@ Topic modelling pipeline for consciousness-related textual data using BERTopic, 
 
 MOSAIC analyses subjective experiential reports through:
 - Advanced NLP with BERT embeddings
-- Dimensionality reduction via UMAP 
+- Dimensionality reduction via UMAP
 - Density-based clustering with HDBSCAN
+- Hyperparameter optimisation with Optuna
 - Topic coherence optimisation
+- Large Language Model integration with Llama CPP for deeper insights.
 
 ## Structure
 
@@ -17,46 +19,48 @@ MOSAIC analyses subjective experiential reports through:
 MOSAIC/
 ├── src/                    # Core functionality
 │   ├── preprocessor.py     # Text cleaning, sentence splitting
-│   ├── model.py           # BERTopic configuration
-│   └── utils.py           # Metrics and helpers
-├── configs/               # Experiment parameters
-│   └── dreamachine.py    # Dataset-specific settings
-└── scripts/              # Analysis tools
-    └── grid_search.py    # Hyperparameter optimisation
+│   ├── model.py            # BERTopic configuration
+│   ├── utils.py            # Metrics and helpers
+│   ├── optuna_search.py    # Hyperparameter search with Optuna
+│   ├── llama_CPP_custom.py # Integration with Llama CPP
+│   ├── prepare_data.ipynb  # Notebook for data preparation
+│   └── preprocess_data_API.ipynb # Notebook for preprocessing data from an API
+├── configs/                # Experiment parameters
+│   └── dreamachine2.py     # Dataset-specific settings
+├── scripts/                # Analysis tools
+│   ├── dreamachine.ipynb   # Jupyter notebook for analysis
+│   └── ...                 # Other analysis notebooks
+└── EVAL/                   # Evaluation scripts and results
+    ├── conditions_similarity.ipynb
+    └── stability_tests/
 
 
 ### Source (`src/`)
 
-- `preprocessor.py`
-  - Text preprocessing and cleaning
-  - Sentence splitting
-  - Stopword removal
-  - Custom tokenization
-
-- `model.py`
-  - BERTopic configuration
-  - UMAP dimensionality reduction
-  - HDBSCAN clustering
-  - Topic extraction and validation
-
-- `utils.py`
-  - Coherence metrics
-  - Grid search utilities
-  - Helper functions
+- preprocessor.py: Text preprocessing and cleaning, and sentence splitting.
+- model.py: BERTopic configuration, UMAP dimensionality reduction, and HDBSCAN clustering.
+- utils.py: Coherence metrics and helper functions.
+- optuna_search.py: Hyperparameter optimisation using Optuna.
+- llama_CPP_custom.py: Custom functions for interacting with Llama CPP.
+- prepare_data.ipynb: Notebook for preparing the data.
+- preprocess_data_API.ipynb: Notebook for preprocessing data from an API.
 
 ### Configs (`configs/`)
 
-- `dreamachine.py`
+- `dreamachine2.py`
   - Dataset-specific parameters
   - Model hyperparameters
   - Preprocessing settings
 
 ### Scripts (`scripts/`)
 
-- `grid_search.py`
-  - Hyperparameter optimisation
-  - Model evaluation
-  - Results logging
+- This directory contains Jupyter notebooks for running experiments and analyzing results.
+
+
+### Scripts (`EVAL/`)
+- This directory contains scripts and notebooks for evaluating the model's performance, including stability tests and similarity analyses.
+
+
 
 ## Installation
 
@@ -64,8 +68,8 @@ MOSAIC/
 git clone https://github.com/romybeaute/MOSAIC.git
 cd MOSAIC
 # Create and activate virtual environment
-python3 -m venv .mosavenv
-source .mosavenv/bin/activate
+python3 -m venv .mosaicvenv
+source .mosaicvenv/bin/activate
 pip install -e .
 
 
@@ -78,16 +82,18 @@ pip install -r requirements.txt
 
 ## Usage
 
-Run grid search optimisation:
+The primary way to use MOSAIC is through the Jupyter notebooks in the scripts/ directory. These notebooks provide a step-by-step guide for running the topic modeling pipeline, from data preprocessing to model evaluation.
+
+To run the hyperparameter optimisation, you can use the optuna_search.py script:
+
 ```
-python scripts/grid_search.py --dataset your_dataset --condition COND --sentences
+python src/optuna_search.py --dataset your_dataset --condition COND --sentences
 ```
 
 Parameters:
 - `--dataset`: Dataset name
 - `--condition`: Experimental condition [HS, DL, HW]
 - `--sentences`: Enable sentence-level analysis
-- `--reduced_GS`: Use reduced parameter grid
 
 ## Citation
 
