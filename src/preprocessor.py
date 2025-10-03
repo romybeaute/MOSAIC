@@ -65,10 +65,10 @@ def preproc(df_reports,sentences=True,min_words=2):
         df_reports = split_sentences(df_reports)[0]
     print(f"\nSuccessfully loaded and processed {len(df_reports)} sentences.")
 
-    #remove sentences defined as too short
-    for i, sentence in enumerate(df_reports):
-        if len(sentence.split()) < min_words:
-            print(sentence)
+    # #remove sentences defined as too short
+    # for i, sentence in enumerate(df_reports):
+    #     if len(sentence.split()) < min_words:
+    #         print(sentence)
 
     # #print the amount of sentences that have less than min_words words
     # short_sentences = [sentence for sentence in df_reports if len(sentence.split()) < min_words]

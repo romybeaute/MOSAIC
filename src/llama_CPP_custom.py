@@ -43,7 +43,7 @@ Sample sentences from this topic:
 Keywords:
 - c-TF-IDF: [KEYWORDS]
 - KeyBERT: [KEYBERT_KEYWORDS]
-- MMR: [MMR_KEYWORDS]
+
 Topic name:"""
 
 DEFAULT_PHENO_SYSTEM_PROMPT = "You are a research assistant. Your task is to summarize the core subjective experience from the provided texts into a concise, scientific title."
@@ -190,11 +190,10 @@ class PhenoLabeler(BaseRepresentation):
             #Get the extra keywords set
             row = topic_info_df.loc[topic_info_df.Topic == topic].iloc[0]
             keybert_kws = ", ".join(row['KeyBERT'])
-            mmr_kws = ", ".join(row['MMR'])
 
             # Prepare prompt
             truncated_docs = [truncate_document(topic_model, self.doc_length, self.tokenizer, doc) for doc in docs]
-            prompt = self._create_prompt(truncated_docs, topic, topics,keybert_kws,mmr_kws)
+            prompt = self._create_prompt(truncated_docs, topic, topics,keybert_kws)
             self.prompts_.append(prompt)
 
 
@@ -209,14 +208,13 @@ class PhenoLabeler(BaseRepresentation):
 
         return updated_topics
 
-    def _create_prompt(self, docs, topic, topics,keybert_kws, mmr_kws):
+    def _create_prompt(self, docs, topic, topics,keybert_kws):
         keywords = list(zip(*topics[topic]))[0] #gets the default c-tf-idf keywords
 
         # Use the Default Chat Prompt
         if self.prompt == self.default_prompt_:
             prompt = self.prompt.replace("[KEYWORDS]", ", ".join(keywords))
-            prompt = prompt.replace("[KEYBERT_KEYWORDS]", keybert_kws)  
-            prompt = prompt.replace("[MMR_KEYWORDS]", mmr_kws)          
+            prompt = prompt.replace("[KEYBERT_KEYWORDS]", keybert_kws)        
             prompt = self._replace_sentences(prompt, docs)
 
         # Use a custom prompt that leverages keywords, sentences or both using
@@ -227,8 +225,6 @@ class PhenoLabeler(BaseRepresentation):
                 prompt = prompt.replace("[KEYWORDS]", ", ".join(keywords))
             if "[KEYBERT_KEYWORDS]" in prompt:                          
                 prompt = prompt.replace("[KEYBERT_KEYWORDS]", keybert_kws)
-            if "[MMR_KEYWORDS]" in prompt:                              
-                prompt = prompt.replace("[MMR_KEYWORDS]", mmr_kws)
             if "[SENTENCES]" in prompt:
                 prompt = self._replace_sentences(prompt, docs)
 
@@ -274,7 +270,7 @@ class MultiKeywordLLM(BaseRepresentation):
         This is the main function. For each topic, it will build a custom
         prompt and generate a new label.
         """
-        # Get the topic info DataFrame that contains KeyBERT and MMR keywords
+        # Get the topic info DataFrame that contains KeyBERT keywords
         topic_info_df = topic_model.get_topic_info()
         
         # Create the new labels
@@ -290,13 +286,11 @@ class MultiKeywordLLM(BaseRepresentation):
 
             ctfidf_kws = ", ".join([word for word, score in topic_model.get_topic(topic_id)])
             keybert_kws = ", ".join(row['KeyBERT'])
-            mmr_kws = ", ".join(row['MMR'])
             
             # Fill in our detailed prompt
             filled_prompt = self.prompt.replace("[DOCUMENTS]", docs)
             filled_prompt = filled_prompt.replace("[KEYWORDS]", ctfidf_kws)
             filled_prompt = filled_prompt.replace("[KEYBERT_KEYWORDS]", keybert_kws)
-            filled_prompt = filled_prompt.replace("[MMR_KEYWORDS]", mmr_kws)
 
             # Get the new label from the LLM
             response = self.llm(prompt=filled_prompt, **self.pipeline_kwargs)

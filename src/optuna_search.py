@@ -111,6 +111,34 @@ class OptunaSearchBERTopic:
             ]).to_csv(self.results_path, index=False)
 
 
+    # def _define_search_space(self, trial):
+    #     """Define the hyperparameter search space for Optuna based on the condition.This space is for 0.6B model"""
+    #     if self.condition == 'DL':
+    #         params = {
+    #             'n_components': trial.suggest_int('n_components', 5, 15),
+    #             'n_neighbors': trial.suggest_int('n_neighbors', 5, 15),
+    #             'min_dist': trial.suggest_float('min_dist', 0.0, 0.05,step=0.005),
+    #             'min_cluster_size': trial.suggest_int('min_cluster_size', 10, 15),
+    #             'min_samples': trial.suggest_int('min_samples', 5, 10),
+    #         }
+    #     elif self.condition == 'HS':
+    #         params = {
+    #             'n_components': trial.suggest_int('n_components', 10, 30),
+    #             'n_neighbors': trial.suggest_int('n_neighbors', 10, 30),
+    #             'min_dist': trial.suggest_float('min_dist', 0.0, 0.05,step=0.005),
+    #             'min_cluster_size': trial.suggest_int('min_cluster_size', 10, 15),
+    #             'min_samples': trial.suggest_int('min_samples', 5, 10),
+    #         }
+    #     else: # Generic default
+    #         params = {
+    #             'n_components': trial.suggest_int('n_components', 5, 25),
+    #             'n_neighbors': trial.suggest_int('n_neighbors', 10, 35),
+    #             'min_dist': trial.suggest_float('min_dist', 0.0, 0.05,step=0.005),
+    #             'min_cluster_size': trial.suggest_int('min_cluster_size', 10, 50),
+    #             'min_samples': trial.suggest_int('min_samples', 5, 25),
+    #         }
+    #     return params
+
     def _define_search_space(self, trial):
         """Define the hyperparameter search space for Optuna based on the condition.This space is for 0.6B model"""
         if self.condition == 'DL':
@@ -123,8 +151,8 @@ class OptunaSearchBERTopic:
             }
         elif self.condition == 'HS':
             params = {
-                'n_components': trial.suggest_int('n_components', 10, 30),
-                'n_neighbors': trial.suggest_int('n_neighbors', 10, 30),
+                'n_components': trial.suggest_int('n_components', 10, 20),
+                'n_neighbors': trial.suggest_int('n_neighbors', 10, 20),
                 'min_dist': trial.suggest_float('min_dist', 0.0, 0.05,step=0.005),
                 'min_cluster_size': trial.suggest_int('min_cluster_size', 10, 15),
                 'min_samples': trial.suggest_int('min_samples', 5, 10),
