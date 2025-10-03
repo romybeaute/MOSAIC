@@ -15,7 +15,7 @@ MOSAIC analyses subjective experiential reports through:
 
 ## Structure
 
-
+```
 MOSAIC/
 ├── src/                    # Core functionality
 │   ├── preprocessor.py     # Text cleaning, sentence splitting
@@ -33,7 +33,7 @@ MOSAIC/
 └── EVAL/                   # Evaluation scripts and results
     ├── conditions_similarity.ipynb
     └── stability_tests/
-
+```
 
 ### Source (`src/`)
 
