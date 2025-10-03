@@ -100,4 +100,3 @@ Parameters:
 If using this code, please cite:
 - Analysing the phenomenology of stroboscopically induced phenomena using natural language topic modelling (Beauté et al.,2024)
 - BERTopic: Neural topic modeling with a class-based TF-IDF procedure (M. Grootendorst, 2022)
-```
