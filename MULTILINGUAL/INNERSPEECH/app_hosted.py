@@ -31,6 +31,36 @@ import datamapplot
 from huggingface_hub import hf_hub_download
 import matplotlib.pyplot as plt
 
+
+# --- constants & helpers (place right after your imports) ---
+ACCEPTABLE_TEXT_COLUMNS = ["reflection_answer_english", "reflection_answer", "text", "report"]
+
+def _pick_text_column(df: pd.DataFrame) -> str | None:
+    for c in ACCEPTABLE_TEXT_COLUMNS:
+        if c in df.columns:
+            return c
+    return None
+
+# allow setting data root from host secrets / env (works with or without secrets.toml)
+def _set_from_env_or_secrets(key: str):
+    # 1) env wins (local dev often uses this)
+    if os.getenv(key):
+        return
+    # 2) try secrets if available (hosted)
+    try:
+        val = st.secrets.get(key, None)  # may raise if no secrets file
+    except Exception:
+        val = None
+    if val:
+        os.environ[key] = str(val)
+
+for _k in ("MOSAIC_DATA", "MOSAIC_BOX"):
+    _set_from_env_or_secrets(_k)
+
+
+
+
+
 ROOT = project_root()
 sys.path.append(str(ROOT / "MULTILINGUAL"))  # only if needed
 
@@ -41,12 +71,27 @@ st.set_page_config(page_title="Advanced Topic Modeling", layout="wide")
 
 
 ################## FOR PATH TO WORK ONLINE ##################################
-# allow setting data root from host secrets / env
-if "MOSAIC_DATA" in st.secrets:
-    os.environ["MOSAIC_DATA"] = st.secrets["MOSAIC_DATA"]
-if "MOSAIC_BOX" in st.secrets:
-    os.environ["MOSAIC_BOX"] = st.secrets["MOSAIC_BOX"]
+# # allow setting data root from host secrets / env
+# if "MOSAIC_DATA" in st.secrets:
+#     os.environ["MOSAIC_DATA"] = st.secrets["MOSAIC_DATA"]
+# if "MOSAIC_BOX" in st.secrets:
+#     os.environ["MOSAIC_BOX"] = st.secrets["MOSAIC_BOX"]
 
+# --- allow setting data root from host secrets / env (works with/without secrets.toml) ---
+def _set_from_env_or_secrets(key: str):
+    # 1) env wins (local dev often uses this)
+    if os.getenv(key):
+        return
+    # 2) try secrets if available (hosted)
+    try:
+        val = st.secrets.get(key, None)  # accessing st.secrets may throw if no secrets file
+    except Exception:
+        val = None
+    if val:
+        os.environ[key] = str(val)
+
+for _k in ("MOSAIC_DATA", "MOSAIC_BOX"):
+    _set_from_env_or_secrets(_k)
 
 ################################################ DATASET CONFIGURATION ################################################
 # --- File and Model paths (NOW USING MOSAIC PATH UTILS) ---
@@ -136,6 +181,16 @@ def load_precomputed_data(docs_file, embeddings_file):
 def get_config_hash(config):
     return json.dumps(config, sort_keys=True)
 
+
+# --- helper: pick the text column and normalise its name ---
+def _pick_text_column(df: pd.DataFrame) -> str | None:
+    candidates = ["reflection_answer_english", "reflection_answer", "text", "report"]
+    for c in candidates:
+        if c in df.columns:
+            return c
+    return None
+
+
 @st.cache_data
 def perform_topic_modeling(_docs, _embeddings, config_hash):
     # This function remains the same
@@ -171,13 +226,35 @@ A:"""
 
 def generate_and_save_embeddings(csv_path, docs_file, embeddings_file, selected_embedding_model, split_sentences, device):
     granularity_text = "sentences" if split_sentences else "reports"
+
+    # if not os.path.exists(docs_file):
+    #     st.info(f"Preparing docs for {os.path.basename(csv_path)} at {granularity_text} level...")
+    #     with st.spinner('Reading data...'):
+    #         df = pd.read_csv(csv_path)
+    #         df.dropna(subset=['reflection_answer_english'], inplace=True)
+    #         df = df[df.reflection_answer_english.str.strip() != '']
+    #         reports = df['reflection_answer_english'].tolist()
     if not os.path.exists(docs_file):
         st.info(f"Preparing docs for {os.path.basename(csv_path)} at {granularity_text} level...")
         with st.spinner('Reading data...'):
             df = pd.read_csv(csv_path)
-            df.dropna(subset=['reflection_answer_english'], inplace=True)
-            df = df[df.reflection_answer_english.str.strip() != '']
-            reports = df['reflection_answer_english'].tolist()
+
+            # Pick a sensible column
+            col = _pick_text_column(df)
+            if col is None:
+                st.error("CSV must contain one of: "
+                         "'reflection_answer_english', 'reflection_answer', 'text', 'report'.")
+                return
+
+            # If it's not already the final name, normalise it
+            if col != "reflection_answer_english":
+                df = df.rename(columns={col: "reflection_answer_english"})
+
+            # Drop empties
+            df.dropna(subset=["reflection_answer_english"], inplace=True)
+            df = df[df["reflection_answer_english"].astype(str).str.strip() != ""]
+            reports = df["reflection_answer_english"].astype(str).tolist()
+
         if split_sentences:
             with st.spinner('Splitting into sentences...'):
                 try: nltk.data.find('tokenizers/punkt')
@@ -215,6 +292,38 @@ st.sidebar.header("Data Source & Model")
 selected_dataset_name = st.sidebar.selectbox("Choose a dataset", options=list(DATASETS.keys()))
 selected_embedding_model = st.sidebar.selectbox("Choose an embedding model", options=EMBEDDING_MODELS)
 
+
+# --- Choose source: pre-existing file on server OR upload your own CSV ---
+st.sidebar.subheader("Data Source")
+source = st.sidebar.radio(
+    "Choose data source",
+    ["Use preprocessed CSV on this server", "Upload a CSV"],
+    index=0
+)
+
+uploaded_csv_path = None
+if source == "Upload a CSV":
+    up = st.sidebar.file_uploader(
+        "Upload a CSV with a column like 'reflection_answer_english' / 'reflection_answer'",
+        type=["csv"]
+    )
+    if up is not None:
+        # Persist the uploaded CSV inside PROC_DIR so the rest of the pipeline can use it
+        uploaded_csv_path = str((Path(PROC_DIR) / "uploaded.csv").resolve())
+        tmp_df = pd.read_csv(up)
+
+        # normalise column name if needed (same logic the generator uses)
+        col = _pick_text_column(tmp_df)
+        if col is None:
+            st.error("CSV must contain one of: 'reflection_answer_english', 'reflection_answer', 'text', 'report'.")
+        else:
+            if col != "reflection_answer_english":
+                tmp_df = tmp_df.rename(columns={col: "reflection_answer_english"})
+            tmp_df.to_csv(uploaded_csv_path, index=False)
+            st.success(f"Uploaded file saved to {uploaded_csv_path}")
+
+
+
 st.sidebar.markdown("[See model performance on the MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard)")
 # (MODEL_SPECIFICATIONS dictionary remains the same)
 MODEL_SPECIFICATIONS = {"intfloat/multilingual-e5-large-instruct": {"description": "A powerful multilingual model, great for diverse languages. Requires more computational resources.","size": "2.24 GB","speed": "Medium",},"Qwen/Qwen3-Embedding-0.6B": {"description": "A very strong multilingual embedding model from Alibaba Cloud. Recommended for best results.","size": "0.6B parameters","speed": "Fast",},"BAAI/bge-small-en-v1.5": {"description": "A fast and efficient English-only model. Good for quick experiments on English text.","size": "67 MB","speed": "Very Fast",},"sentence-transformers/all-mpnet-base-v2": {"description": "A classic, well-balanced model for English. A solid baseline choice.","size": "438 MB","speed": "Fast",}}
@@ -249,7 +358,13 @@ def get_precomputed_filenames(csv_path, model_name, split_sentences):
     return docs_file_path, embeddings_file_path
 
 
-CSV_PATH = DATASETS[selected_dataset_name]
+# CSV_PATH = DATASETS[selected_dataset_name]
+if source == "Upload a CSV" and uploaded_csv_path is not None:
+    CSV_PATH = uploaded_csv_path
+else:
+    CSV_PATH = DATASETS[selected_dataset_name]
+
+
 DOCS_FILE, EMBEDDINGS_FILE = get_precomputed_filenames(CSV_PATH, selected_embedding_model, selected_granularity)
 
 if not os.path.exists(EMBEDDINGS_FILE):
