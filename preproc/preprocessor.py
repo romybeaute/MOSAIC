@@ -85,14 +85,6 @@ def preproc(df_reports,sentences=True,min_words=2):
     return df_reports
 
 
-def clean_text(text):
-    # to lowercase
-    text = text.lower()
-    # Remv special characters and digits
-    text = re.sub(r'[^a-zA-Z\s]', '', text)
-    # rmv extra whitespace
-    text = ' '.join(text.split())
-    return text
 
 
 
