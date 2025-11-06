@@ -1,3 +1,14 @@
+"""
+File: app.py
+Description: Streamlit app for advanced topic modeling on Innerspeech dataset with BERTopic and Llama integration.
+Last Modified: 06/11/2025
+@author: r.beaut@sussex.ac.uk
+"""
+from pathlib import Path
+import sys
+from mosaic.path_utils import CFG, raw_path, proc_path, eval_path, project_root
+
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -20,16 +31,47 @@ import datamapplot
 from huggingface_hub import hf_hub_download
 import matplotlib.pyplot as plt
 
+ROOT = project_root()
+sys.path.append(str(ROOT / "MULTILINGUAL"))  # only if needed
+
 # --- 1. CONFIGURATION & DEFAULTS ---
 st.set_page_config(page_title="Advanced Topic Modeling", layout="wide")
 
-# --- File and Model paths ---
+
+################################################ DATASET CONFIGURATION ################################################
+# --- File and Model paths (NOW USING MOSAIC PATH UTILS) ---
+# The Innerspeech raw folder on Box is INNERSPEECH
+DATASET = "INNERSPEECH"
+
+RAW_DIR  = raw_path(DATASET)        # e.g., ~/Box-Box/TMDATA/INNERSPEECH
+PROC_DIR = proc_path(DATASET,'preprocessed')       # e.g., ~/Projects/MOSAIC/DATA/innerspeech
+EVAL_DIR = eval_path(DATASET)       # e.g., ~/Projects/MOSAIC/DATA/EVAL/innerspeech
+CACHE_DIR = str(PROC_DIR / "cache")
+
+# Ensure processed directories exist
+(PROC_DIR).mkdir(parents=True, exist_ok=True)
+(Path(CACHE_DIR)).mkdir(parents=True, exist_ok=True)
+(Path(EVAL_DIR)).mkdir(parents=True, exist_ok=True)
+
 DATASETS = {
-    "API Translation (Batched)": '/Users/rbeaute/Projects/MOSAIC/DATA/multilingual/innerspeech_translated_batched_API.csv',
-    "Local Translation (Llama)": '/Users/rbeaute/Projects/MOSAIC/DATA/multilingual/japanese/innerspeech/innerspeech_dataset_translated_llama.csv'
+    "API Translation (Batched)": str(PROC_DIR / "innerspeech_translated_batched_API.csv"),
+    "Local Translation (Llama)": str(PROC_DIR / "innerspeech_dataset_translated_llama.csv"),
 }
-HISTORY_FILE = "run_history.json"
-CACHE_DIR = "/Users/rbeaute/Projects/MOSAIC/DATA/multilingual/english/innerspeech/cache"
+
+HISTORY_FILE = str(PROC_DIR / "run_history.json")
+
+# # --- File and Model paths ---
+# DATASETS = {
+#     "API Translation (Batched)": '/Users/rbeaute/Projects/MOSAIC/DATA/multilingual/innerspeech_translated_batched_API.csv',
+#     "Local Translation (Llama)": '/Users/rbeaute/Projects/MOSAIC/DATA/multilingual/japanese/innerspeech/innerspeech_dataset_translated_llama.csv'
+# }
+
+# HISTORY_FILE = "run_history.json"
+# CACHE_DIR = "/Users/rbeaute/Projects/MOSAIC/DATA/multilingual/english/innerspeech/cache"
+
+
+################################################################################################################################################
+
 
 EMBEDDING_MODELS = (
     "intfloat/multilingual-e5-large-instruct",
@@ -191,9 +233,11 @@ def get_precomputed_filenames(csv_path, model_name, split_sentences):
     granularity_suffix = "sentences" if split_sentences else "reports"
     docs_filename = f"precomputed_{base_name}_{granularity_suffix}_docs.npy"
     embeddings_filename = f"precomputed_{base_name}_{model_safe_name}_{granularity_suffix}_embeddings.npy"
-    docs_file_path = os.path.join(CACHE_DIR, docs_filename)
-    embeddings_file_path = os.path.join(CACHE_DIR, embeddings_filename)
+    # docs_file_path = os.path.join(CACHE_DIR, docs_filename)
+    docs_file_path = str(Path(CACHE_DIR) / docs_filename)
+    embeddings_file_path = str(Path(CACHE_DIR) / embeddings_filename)
     return docs_file_path, embeddings_file_path
+
 
 CSV_PATH = DATASETS[selected_dataset_name]
 DOCS_FILE, EMBEDDINGS_FILE = get_precomputed_filenames(CSV_PATH, selected_embedding_model, selected_granularity)
