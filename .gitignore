@@ -21,11 +21,11 @@ __pycache__/
 
 # Ignore results directory & HPC log files
 RESULTS/
-EVAL/
 *.out*.code-workspace
 
 #ignore MOSAIC.egg-info
 MOSAIC.egg-info/
+
 
 
 #ignore the content of DATA directory, but not the directory itself
