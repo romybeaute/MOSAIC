@@ -1,0 +1,3 @@
+# src/mosaic/configs/default.yaml
+data_root: "~/Projects/MOSAIC/DATA"                      # processed outputs
+box_root:  "~/Library/CloudStorage/Box-Box/TMDATA"  # raw data root
