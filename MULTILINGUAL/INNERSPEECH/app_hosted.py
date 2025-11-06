@@ -1,14 +1,17 @@
 """
 File: app.py
-Description: Streamlit app for advanced topic modeling on Innerspeech dataset with BERTopic and Llama integration.
+Description: Streamlit app for advanced topic modeling on Innerspeech dataset
+             with BERTopic, UMAP, HDBSCAN, LlamaCPP labeling, and CSV upload support.
 Last Modified: 06/11/2025
-@author: r.beaut@sussex.ac.uk
+@author: r.beaut
 """
+
+# =====================================================================
+# Imports
+# =====================================================================
+
 from pathlib import Path
 import sys
-from mosaic.path_utils import CFG, raw_path, proc_path, eval_path, project_root
-
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -17,96 +20,88 @@ import os
 import nltk
 import json
 
-# BERTopic and related imports
+from mosaic.path_utils import CFG, raw_path, proc_path, eval_path, project_root
+
+# BERTopic stack
 from bertopic import BERTopic
 from bertopic.representation import LlamaCPP
 from llama_cpp import Llama
 from sentence_transformers import SentenceTransformer
+
+# Clustering/dimensionality reduction
 from sklearn.feature_extraction.text import CountVectorizer
 from umap import UMAP
 from hdbscan import HDBSCAN
 
-# Visualization
+# Visualisation
 import datamapplot
-from huggingface_hub import hf_hub_download
 import matplotlib.pyplot as plt
+from huggingface_hub import hf_hub_download
 
 
-# --- constants & helpers (place right after your imports) ---
-ACCEPTABLE_TEXT_COLUMNS = ["reflection_answer_english", "reflection_answer", "text", "report"]
+
+# =====================================================================
+# 0. Constants & Helper Functions
+# =====================================================================
+
+ACCEPTABLE_TEXT_COLUMNS = [
+    "reflection_answer_english",
+    "reflection_answer",
+    "text",
+    "report",
+]
 
 def _pick_text_column(df: pd.DataFrame) -> str | None:
-    for c in ACCEPTABLE_TEXT_COLUMNS:
-        if c in df.columns:
-            return c
+    """Return the first matching text column."""
+    for col in ACCEPTABLE_TEXT_COLUMNS:
+        if col in df.columns:
+            return col
     return None
 
-# allow setting data root from host secrets / env (works with or without secrets.toml)
+
 def _set_from_env_or_secrets(key: str):
-    # 1) env wins (local dev often uses this)
+    """Allow hosting: value can come from environment or from Streamlit secrets."""
     if os.getenv(key):
         return
-    # 2) try secrets if available (hosted)
     try:
-        val = st.secrets.get(key, None)  # may raise if no secrets file
+        val = st.secrets.get(key, None)
     except Exception:
         val = None
     if val:
         os.environ[key] = str(val)
 
+# Enable both MOSAIC_DATA and MOSAIC_BOX automatically
 for _k in ("MOSAIC_DATA", "MOSAIC_BOX"):
     _set_from_env_or_secrets(_k)
 
 
 
+# =====================================================================
+# 1. Streamlit app setup
+# =====================================================================
 
+st.set_page_config(page_title="Advanced Topic Modeling", layout="wide")
+st.title("Topic Modelling Dashboard for Innerspeech Data (Upload or Use Preprocessed Data)")
 
 ROOT = project_root()
-sys.path.append(str(ROOT / "MULTILINGUAL"))  # only if needed
-
-# --- 1. CONFIGURATION & DEFAULTS ---
-st.set_page_config(page_title="Advanced Topic Modeling", layout="wide")
+sys.path.append(str(ROOT / "MULTILINGUAL"))
 
 
 
+# =====================================================================
+# 2. Dataset paths (using MOSAIC structure)
+# =====================================================================
 
-################## FOR PATH TO WORK ONLINE ##################################
-# # allow setting data root from host secrets / env
-# if "MOSAIC_DATA" in st.secrets:
-#     os.environ["MOSAIC_DATA"] = st.secrets["MOSAIC_DATA"]
-# if "MOSAIC_BOX" in st.secrets:
-#     os.environ["MOSAIC_BOX"] = st.secrets["MOSAIC_BOX"]
-
-# --- allow setting data root from host secrets / env (works with/without secrets.toml) ---
-def _set_from_env_or_secrets(key: str):
-    # 1) env wins (local dev often uses this)
-    if os.getenv(key):
-        return
-    # 2) try secrets if available (hosted)
-    try:
-        val = st.secrets.get(key, None)  # accessing st.secrets may throw if no secrets file
-    except Exception:
-        val = None
-    if val:
-        os.environ[key] = str(val)
-
-for _k in ("MOSAIC_DATA", "MOSAIC_BOX"):
-    _set_from_env_or_secrets(_k)
-
-################################################ DATASET CONFIGURATION ################################################
-# --- File and Model paths (NOW USING MOSAIC PATH UTILS) ---
-# The Innerspeech raw folder on Box is INNERSPEECH
 DATASET = "INNERSPEECH"
 
-RAW_DIR  = raw_path(DATASET)        # e.g., ~/Box-Box/TMDATA/INNERSPEECH
-PROC_DIR = proc_path(DATASET,'preprocessed')       # e.g., ~/Projects/MOSAIC/DATA/innerspeech
-EVAL_DIR = eval_path(DATASET)       # e.g., ~/Projects/MOSAIC/DATA/EVAL/innerspeech
-CACHE_DIR = str(PROC_DIR / "cache")
+RAW_DIR  = raw_path(DATASET)
+PROC_DIR = proc_path(DATASET, 'preprocessed')
+EVAL_DIR = eval_path(DATASET)
+CACHE_DIR = PROC_DIR / "cache"
 
-# Ensure processed directories exist
-(PROC_DIR).mkdir(parents=True, exist_ok=True)
-(Path(CACHE_DIR)).mkdir(parents=True, exist_ok=True)
-(Path(EVAL_DIR)).mkdir(parents=True, exist_ok=True)
+PROC_DIR.mkdir(parents=True, exist_ok=True)
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+EVAL_DIR.mkdir(parents=True, exist_ok=True)
 
 DATASETS = {
     "API Translation (Batched)": str(PROC_DIR / "innerspeech_translated_batched_API.csv"),
@@ -115,322 +110,425 @@ DATASETS = {
 
 HISTORY_FILE = str(PROC_DIR / "run_history.json")
 
-# # --- File and Model paths ---
-# DATASETS = {
-#     "API Translation (Batched)": '/Users/rbeaute/Projects/MOSAIC/DATA/multilingual/innerspeech_translated_batched_API.csv',
-#     "Local Translation (Llama)": '/Users/rbeaute/Projects/MOSAIC/DATA/multilingual/japanese/innerspeech/innerspeech_dataset_translated_llama.csv'
-# }
-
-# HISTORY_FILE = "run_history.json"
-# CACHE_DIR = "/Users/rbeaute/Projects/MOSAIC/DATA/multilingual/english/innerspeech/cache"
 
 
-################################################################################################################################################
-
-
-EMBEDDING_MODELS = (
-    "intfloat/multilingual-e5-large-instruct",
-    "Qwen/Qwen3-Embedding-0.6B",
-    "BAAI/bge-small-en-v1.5",
-    "sentence-transformers/all-mpnet-base-v2"
-)
-
-DEFAULT_PARAMS = {
-    'embedding_model': EMBEDDING_MODELS[0],
-    'split_into_sentences': True,
-    'use_vectorizer': True,
-    'ngram_min': 1, 'ngram_max': 3,
-    'min_df': 1,
-    'stopwords': None,
-    'umap_neighbors': 15, 'umap_components': 5, 'min_dist': 0.0,
-    'hdbscan_min_cluster_size': 40, 'hdbscan_min_samples': 30,
-    'bt_nr_topics': 'auto', 'bt_top_n_words': 15
-}
-
-# --- 2. CORE LOGIC & CACHED FUNCTIONS ---
-
-def load_history():
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, 'r') as f:
-            try: return json.load(f)
-            except json.JSONDecodeError: return []
-    return []
-
-def save_history(history_data):
-    with open(HISTORY_FILE, 'w') as f:
-        json.dump(history_data, f, indent=4)
+# =====================================================================
+# 3. Embedding & LLM loaders
+# =====================================================================
 
 @st.cache_resource
 def load_embedding_model(model_name):
-    st.info(f"Loading embedding model '{model_name}' into memory...")
+    st.info(f"Loading embedding model '{model_name}'...")
     return SentenceTransformer(model_name)
+
 
 @st.cache_resource
 def load_llm_model():
-    model_name_or_path = "NousResearch/Meta-Llama-3-8B-Instruct-GGUF"
-    model_basename = "Meta-Llama-3-8B-Instruct-Q4_K_M.gguf"
-    model_path = hf_hub_download(repo_id=model_name_or_path, filename=model_basename)
-    return Llama(model_path=model_path, n_gpu_layers=-1, n_ctx=8192, stop=["Q:", "\n"], verbose=False)
+    """Loads LlamaCPP quantised model for topic labeling."""
+    model_repo  = "NousResearch/Meta-Llama-3-8B-Instruct-GGUF"
+    model_file  = "Meta-Llama-3-8B-Instruct-Q4_K_M.gguf"
+    model_path  = hf_hub_download(repo_id=model_repo, filename=model_file)
+    return Llama(model_path=model_path, n_gpu_layers=-1, n_ctx=8192,
+                 stop=["Q:", "\n"], verbose=False)
+
 
 @st.cache_data
 def load_precomputed_data(docs_file, embeddings_file):
     docs = np.load(docs_file, allow_pickle=True).tolist()
-    embeddings = np.load(embeddings_file, allow_pickle=True)
-    return docs, embeddings
-
-def get_config_hash(config):
-    return json.dumps(config, sort_keys=True)
+    emb  = np.load(embeddings_file, allow_pickle=True)
+    return docs, emb
 
 
-# --- helper: pick the text column and normalise its name ---
-def _pick_text_column(df: pd.DataFrame) -> str | None:
-    candidates = ["reflection_answer_english", "reflection_answer", "text", "report"]
-    for c in candidates:
-        if c in df.columns:
-            return c
-    return None
+
+# =====================================================================
+# 4. Topic modeling function
+# =====================================================================
+
+def get_config_hash(cfg):
+    return json.dumps(cfg, sort_keys=True)
 
 
 @st.cache_data
 def perform_topic_modeling(_docs, _embeddings, config_hash):
-    # This function remains the same
+    """Fit BERTopic using cached result."""
     config = json.loads(config_hash)
-    if 'ngram_range' in config['vectorizer_params']:
-        config['vectorizer_params']['ngram_range'] = tuple(config['vectorizer_params']['ngram_range'])
+
+    # Prepare vectorizer parameters
+    if "ngram_range" in config["vectorizer_params"]:
+        config["vectorizer_params"]["ngram_range"] = tuple(config["vectorizer_params"]["ngram_range"])
+
+    # Load LLM for labeling
     llm = load_llm_model()
+
     prompt = """Q:
-You are an expert in micro-phenomenology. The following documents are reflections from participants about their experience. I have a topic that contains the following documents:
+You are an expert in micro-phenomenology. The following documents are reflections from participants about their experience.
+I have a topic that contains the following documents:
 [DOCUMENTS]
 The topic is described by the following keywords: '[KEYWORDS]'.
-Based on the above information, give an informative, short label for this topic, between 5 and 10 words.
-Instructions for your response:
-- Do NOT start the label with 'experiences of'.
-- Your response MUST be only the label itself.
-- Do NOT include any introductory phrases, explanations, or quotation marks in your output.
+Based on the above information, give a short, informative label (5–10 words).
 A:"""
-    representation_model = {"LLM": LlamaCPP(llm, prompt=prompt, nr_docs=25, doc_length=300, tokenizer="whitespace")}
-    umap_model = UMAP(random_state=42, metric='cosine', **config['umap_params'])
-    hdbscan_model = HDBSCAN(metric='euclidean', prediction_data=True, **config['hdbscan_params'])
-    vectorizer_model = CountVectorizer(**config['vectorizer_params']) if config['use_vectorizer'] else None
-    nr_topics_val = None if config['bt_params']['nr_topics'] == 'auto' else int(config['bt_params']['nr_topics'])
-    topic_model = BERTopic(umap_model=umap_model, hdbscan_model=hdbscan_model, vectorizer_model=vectorizer_model, representation_model=representation_model, top_n_words=config['bt_params']['top_n_words'], nr_topics=nr_topics_val, verbose=False)
+
+    rep_model = {
+        "LLM": LlamaCPP(llm, prompt=prompt, nr_docs=25, doc_length=300, tokenizer="whitespace")
+    }
+
+    umap_model = UMAP(
+        random_state=42, metric="cosine",
+        **config["umap_params"]
+    )
+    hdbscan_model = HDBSCAN(
+        metric="euclidean", prediction_data=True,
+        **config["hdbscan_params"]
+    )
+    vectorizer_model = CountVectorizer(**config["vectorizer_params"]) if config["use_vectorizer"] else None
+
+    nr_topics_val = None if config["bt_params"]["nr_topics"] == "auto" \
+                         else int(config["bt_params"]["nr_topics"])
+
+    topic_model = BERTopic(
+        umap_model=umap_model,
+        hdbscan_model=hdbscan_model,
+        vectorizer_model=vectorizer_model,
+        representation_model=rep_model,
+        top_n_words=config["bt_params"]["top_n_words"],
+        nr_topics=nr_topics_val,
+        verbose=False
+    )
+
     topics, _ = topic_model.fit_transform(_docs, _embeddings)
     info = topic_model.get_topic_info()
-    outlier_perc = (info.Count[info.Topic == -1].iloc[0] / info.Count.sum()) * 100 if -1 in info.Topic.values else 0
-    llm_labels_raw = [label[0][0] for label in topic_model.get_topics(full=True)["LLM"].values()]
-    llm_labels_cleaned = [label.split(':')[-1].strip().strip('"').strip('.').strip() if ':' in label else label.strip().strip('"').strip('.').strip() for label in llm_labels_raw]
-    final_topic_labels = [label if label else "Unlabelled" for label in llm_labels_cleaned]
-    all_labels = [final_topic_labels[topic + topic_model._outliers] if topic != -1 else "Unlabelled" for topic in topics]
-    reduced_embeddings = UMAP(n_neighbors=15, n_components=2, min_dist=0.0, metric='cosine', random_state=42).fit_transform(_embeddings)
-    return topic_model, reduced_embeddings, all_labels, len(info) - 1, outlier_perc
 
-def generate_and_save_embeddings(csv_path, docs_file, embeddings_file, selected_embedding_model, split_sentences, device):
-    granularity_text = "sentences" if split_sentences else "reports"
+    outlier_pct = 0
+    if -1 in info.Topic.values:
+        outlier_pct = (info.Count[info.Topic == -1].iloc[0] / info.Count.sum()) * 100
 
-    # if not os.path.exists(docs_file):
-    #     st.info(f"Preparing docs for {os.path.basename(csv_path)} at {granularity_text} level...")
-    #     with st.spinner('Reading data...'):
-    #         df = pd.read_csv(csv_path)
-    #         df.dropna(subset=['reflection_answer_english'], inplace=True)
-    #         df = df[df.reflection_answer_english.str.strip() != '']
-    #         reports = df['reflection_answer_english'].tolist()
-    if not os.path.exists(docs_file):
-        st.info(f"Preparing docs for {os.path.basename(csv_path)} at {granularity_text} level...")
-        with st.spinner('Reading data...'):
-            df = pd.read_csv(csv_path)
+    # LLM labels
+    raw_labels = [label[0][0] for label in topic_model.get_topics(full=True)["LLM"].values()]
+    cleaned_labels = [
+        lbl.split(":")[-1].strip().strip('"').strip(".") for lbl in raw_labels
+    ]
+    final_labels = [lbl if lbl else "Unlabelled" for lbl in cleaned_labels]
 
-            # Pick a sensible column
-            col = _pick_text_column(df)
-            if col is None:
-                st.error("CSV must contain one of: "
-                         "'reflection_answer_english', 'reflection_answer', 'text', 'report'.")
-                return
+    # Map each document to its label
+    all_labels = [
+        final_labels[topic + topic_model._outliers] if topic != -1 else "Unlabelled"
+        for topic in topics
+    ]
 
-            # If it's not already the final name, normalise it
-            if col != "reflection_answer_english":
-                df = df.rename(columns={col: "reflection_answer_english"})
+    reduced = UMAP(
+        n_neighbors=15, n_components=2, min_dist=0.0,
+        metric="cosine", random_state=42
+    ).fit_transform(_embeddings)
 
-            # Drop empties
-            df.dropna(subset=["reflection_answer_english"], inplace=True)
-            df = df[df["reflection_answer_english"].astype(str).str.strip() != ""]
-            reports = df["reflection_answer_english"].astype(str).tolist()
+    return topic_model, reduced, all_labels, len(info)-1, outlier_pct
 
-        if split_sentences:
-            with st.spinner('Splitting into sentences...'):
-                try: nltk.data.find('tokenizers/punkt')
-                except nltk.downloader.DownloadError: st.info("Downloading 'punkt' tokenizer..."); nltk.download('punkt')
-                sentences = [s for r in reports for s in nltk.sent_tokenize(r)]
-            with st.spinner('Filtering short sentences...'):
-                docs = [s for s in sentences if len(s.split()) > 2]
-        else: docs = reports
-        with st.spinner(f"Saving {len(docs)} documents..."):
-            np.save(docs_file, np.array(docs, dtype=object))
-        st.success("Document preparation complete.")
-    else: docs = np.load(docs_file, allow_pickle=True).tolist()
-    
-    st.info(f"Generating embeddings with '{selected_embedding_model}' on {device} for {len(docs)} documents...")
-    with st.spinner("This can take a while..."):
-        embedding_model_obj = load_embedding_model(selected_embedding_model)
-        
-        encode_device = None
-        batch_size = 32 # Default for GPU
-        if device == 'CPU':
-            encode_device = 'cpu'
-            batch_size = 64 # Use a larger batch size for CPU
-        
-        embeddings = embedding_model_obj.encode(docs, show_progress_bar=True, batch_size=batch_size, device=encode_device)
-        
-    with st.spinner(f"Saving embeddings..."):
-        np.save(embeddings_file, embeddings)
-    st.success("Embedding generation complete!"); st.balloons(); st.rerun()
 
-# --- 4. MAIN APP INTERFACE ---
-st.title("Topic Modelling Dashboard for Innerspeech Data: Fine-Tuning with visualisation")
 
-# --- SIDEBAR ---
+# =====================================================================
+# 5. CSV → documents → embeddings pipeline
+# =====================================================================
+
+def generate_and_save_embeddings(csv_path, docs_file, emb_file,
+                                 selected_embedding_model,
+                                 split_sentences, device):
+
+    # ---------------------
+    # Load & clean CSV
+    # ---------------------
+    st.info(f"Reading and preparing CSV: {csv_path}")
+    df = pd.read_csv(csv_path)
+
+    col = _pick_text_column(df)
+    if col is None:
+        st.error("CSV must contain one of: " + ", ".join(ACCEPTABLE_TEXT_COLUMNS))
+        return
+
+    if col != "reflection_answer_english":
+        df = df.rename(columns={col: "reflection_answer_english"})
+
+    df.dropna(subset=["reflection_answer_english"], inplace=True)
+    df["reflection_answer_english"] = df["reflection_answer_english"].astype(str)
+    df = df[df["reflection_answer_english"].str.strip() != ""]
+    reports = df["reflection_answer_english"].tolist()
+
+    # ---------------------
+    # Sentence / report granularity
+    # ---------------------
+    if split_sentences:
+        try:
+            nltk.data.find("tokenizers/punkt")
+        except Exception:
+            nltk.download("punkt")
+
+        sentences = [s for r in reports for s in nltk.sent_tokenize(r)]
+        docs = [s for s in sentences if len(s.split()) > 2]
+    else:
+        docs = reports
+
+    np.save(docs_file, np.array(docs, dtype=object))
+    st.success(f"Prepared {len(docs)} documents")
+
+    # ---------------------
+    # Embeddings
+    # ---------------------
+    st.info(f"Encoding {len(docs)} documents with {selected_embedding_model} on {device}")
+
+    model = load_embedding_model(selected_embedding_model)
+
+    encode_device = None
+    batch_size = 32
+    if device == "CPU":
+        encode_device = "cpu"
+        batch_size = 64
+
+    embeddings = model.encode(
+        docs,
+        show_progress_bar=True,
+        batch_size=batch_size,
+        device=encode_device
+    )
+    np.save(emb_file, embeddings)
+
+    st.success("Embedding generation complete!")
+    st.balloons()
+    st.rerun()
+
+
+
+# =====================================================================
+# 6. Sidebar — dataset, upload, parameters
+# =====================================================================
+
 st.sidebar.header("Data Source & Model")
-selected_dataset_name = st.sidebar.selectbox("Choose a dataset", options=list(DATASETS.keys()))
-selected_embedding_model = st.sidebar.selectbox("Choose an embedding model", options=EMBEDDING_MODELS)
 
+selected_dataset_name = st.sidebar.selectbox("Choose a dataset",
+                                             list(DATASETS.keys()))
+selected_embedding_model = st.sidebar.selectbox("Choose an embedding model", (
+    "intfloat/multilingual-e5-large-instruct",
+    "Qwen/Qwen3-Embedding-0.6B",
+    "BAAI/bge-small-en-v1.5",
+    "sentence-transformers/all-mpnet-base-v2",
+))
 
-# --- Choose source: pre-existing file on server OR upload your own CSV ---
-st.sidebar.subheader("Data Source")
+# --- User CSV upload ---
+st.sidebar.subheader("Data Input Method")
 source = st.sidebar.radio(
     "Choose data source",
-    ["Use preprocessed CSV on this server", "Upload a CSV"],
+    ["Use preprocessed CSV on server", "Upload my own CSV"],
     index=0
 )
 
 uploaded_csv_path = None
-if source == "Upload a CSV":
-    up = st.sidebar.file_uploader(
-        "Upload a CSV with a column like 'reflection_answer_english' / 'reflection_answer'",
-        type=["csv"]
-    )
+if source == "Upload my own CSV":
+    up = st.sidebar.file_uploader("Upload a CSV", type=["csv"])
     if up is not None:
-        # Persist the uploaded CSV inside PROC_DIR so the rest of the pipeline can use it
-        uploaded_csv_path = str((Path(PROC_DIR) / "uploaded.csv").resolve())
         tmp_df = pd.read_csv(up)
-
-        # normalise column name if needed (same logic the generator uses)
         col = _pick_text_column(tmp_df)
         if col is None:
-            st.error("CSV must contain one of: 'reflection_answer_english', 'reflection_answer', 'text', 'report'.")
+            st.error("CSV must contain a text column such as: " + ", ".join(ACCEPTABLE_TEXT_COLUMNS))
         else:
             if col != "reflection_answer_english":
                 tmp_df = tmp_df.rename(columns={col: "reflection_answer_english"})
+            uploaded_csv_path = str((PROC_DIR / "uploaded.csv").resolve())
             tmp_df.to_csv(uploaded_csv_path, index=False)
-            st.success(f"Uploaded file saved to {uploaded_csv_path}")
+            st.success(f"Uploaded CSV saved to {uploaded_csv_path}")
 
-
-
-st.sidebar.markdown("[See model performance on the MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard)")
-# (MODEL_SPECIFICATIONS dictionary remains the same)
-MODEL_SPECIFICATIONS = {"intfloat/multilingual-e5-large-instruct": {"description": "A powerful multilingual model, great for diverse languages. Requires more computational resources.","size": "2.24 GB","speed": "Medium",},"Qwen/Qwen3-Embedding-0.6B": {"description": "A very strong multilingual embedding model from Alibaba Cloud. Recommended for best results.","size": "0.6B parameters","speed": "Fast",},"BAAI/bge-small-en-v1.5": {"description": "A fast and efficient English-only model. Good for quick experiments on English text.","size": "67 MB","speed": "Very Fast",},"sentence-transformers/all-mpnet-base-v2": {"description": "A classic, well-balanced model for English. A solid baseline choice.","size": "438 MB","speed": "Fast",}}
-spec = MODEL_SPECIFICATIONS.get(selected_embedding_model)
-if spec: st.sidebar.info(f"**Model Details:**\n- **Description**: {spec['description']}\n- **Size**: {spec['size']}\n- **Speed**: {spec['speed']}")
-
-st.sidebar.header("Data Preparation")
-
-# --- NEW DEVICE SELECTOR ---
-selected_device = st.sidebar.radio(
-    "Select processing device",
-    ['GPU (MPS)', 'CPU'],
-    index=0,
-    help="Choose 'CPU' if you encounter 'MPS backend out of memory' errors. CPU is slower but has access to more memory."
-)
-
-selected_granularity = st.sidebar.checkbox("Split reports into sentences", value=DEFAULT_PARAMS['split_into_sentences'])
-granularity_label = "Sentences" if selected_granularity else "Reports"
-
-st.sidebar.header("Performance Tuning")
-subsample_perc = st.sidebar.slider("Subsample for tuning (%)", 10, 100, 100, 5, help="For faster tuning, use a fraction of data.")
-
-def get_precomputed_filenames(csv_path, model_name, split_sentences):
-    base_name = os.path.splitext(os.path.basename(csv_path))[0]
-    model_safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', model_name)
-    granularity_suffix = "sentences" if split_sentences else "reports"
-    docs_filename = f"precomputed_{base_name}_{granularity_suffix}_docs.npy"
-    embeddings_filename = f"precomputed_{base_name}_{model_safe_name}_{granularity_suffix}_embeddings.npy"
-    # docs_file_path = os.path.join(CACHE_DIR, docs_filename)
-    docs_file_path = str(Path(CACHE_DIR) / docs_filename)
-    embeddings_file_path = str(Path(CACHE_DIR) / embeddings_filename)
-    return docs_file_path, embeddings_file_path
-
-
-# CSV_PATH = DATASETS[selected_dataset_name]
-if source == "Upload a CSV" and uploaded_csv_path is not None:
+# Choose final CSV path
+if source == "Upload my own CSV" and uploaded_csv_path is not None:
     CSV_PATH = uploaded_csv_path
 else:
     CSV_PATH = DATASETS[selected_dataset_name]
 
+# --- Device selection ---
+st.sidebar.header("Data Preparation")
+selected_device = st.sidebar.radio(
+    "Processing device",
+    ["GPU (MPS)", "CPU"],
+    index=0,
+)
 
-DOCS_FILE, EMBEDDINGS_FILE = get_precomputed_filenames(CSV_PATH, selected_embedding_model, selected_granularity)
+selected_granularity = st.sidebar.checkbox("Split reports into sentences", value=True)
+granularity_label = "sentences" if selected_granularity else "reports"
+
+# --- Subsample ---
+st.sidebar.header("Performance")
+subsample_perc = st.sidebar.slider("Subsample (%)", 10, 100, 100, 5)
+
+
+
+# =====================================================================
+# 7. Precompute filenames and pipeline triggers
+# =====================================================================
+
+def get_precomputed_filenames(csv_path, model_name, split_sentences):
+    base = os.path.splitext(os.path.basename(csv_path))[0]
+    safe_model = re.sub(r"[^a-zA-Z0-9_-]", "_", model_name)
+    suf = "sentences" if split_sentences else "reports"
+    return (
+        str(CACHE_DIR / f"precomputed_{base}_{suf}_docs.npy"),
+        str(CACHE_DIR / f"precomputed_{base}_{safe_model}_{suf}_embeddings.npy"),
+    )
+
+DOCS_FILE, EMBEDDINGS_FILE = get_precomputed_filenames(
+    CSV_PATH, selected_embedding_model, selected_granularity
+)
+
+
+
+# =====================================================================
+# 8. Prepare Data OR Run Analysis
+# =====================================================================
 
 if not os.path.exists(EMBEDDINGS_FILE):
-    st.warning(f"Pre-computed data for **'{granularity_label}'** with model **'{selected_embedding_model}'** not found.")
-    if st.button("Prepare Data for this Configuration"):
-        # Pass the selected device to the function
-        generate_and_save_embeddings(CSV_PATH, DOCS_FILE, EMBEDDINGS_FILE, selected_embedding_model, selected_granularity, selected_device)
+    st.warning(f"No precomputed embeddings found for this configuration ({granularity_label} / {selected_embedding_model}).")
+    
+    if st.button("Prepare Data for This Configuration"):
+        generate_and_save_embeddings(
+            CSV_PATH, DOCS_FILE, EMBEDDINGS_FILE,
+            selected_embedding_model, selected_granularity, selected_device
+        )
+
 else:
-    # (The rest of the script remains the same)
+    # Load cached data
     docs, embeddings = load_precomputed_data(DOCS_FILE, EMBEDDINGS_FILE)
+
+    # Subsample
     if subsample_perc < 100:
-        st.warning(f"⚠️ Analysis is running on a {subsample_perc}% subsample of the data.")
-        sample_size = int(len(docs) * (subsample_perc / 100))
-        random_indices = np.random.choice(len(docs), size=sample_size, replace=False)
-        docs = [docs[i] for i in random_indices]
-        embeddings = np.array(embeddings)[random_indices]
-    doc_count_label = f"{len(docs)} ({subsample_perc}%)" if subsample_perc < 100 else f"{len(docs)}"
-    st.metric("Documents to Analyze", doc_count_label, granularity_label)
+        n = int(len(docs) * (subsample_perc / 100))
+        idx = np.random.choice(len(docs), size=n, replace=False)
+        docs = [docs[i] for i in idx]
+        embeddings = embeddings[idx]
+        st.warning(f"Running analysis on {subsample_perc}% subsample ({len(docs)} documents)")
+
+    st.metric("Documents to Analyze", len(docs), granularity_label)
+
+    # --- Parameter controls ---
     st.sidebar.header("Model Parameters")
-    use_vectorizer = st.sidebar.checkbox("Use CountVectorizer", value=DEFAULT_PARAMS['use_vectorizer'])
-    with st.sidebar.expander("CountVectorizer Parameters", expanded=True):
-        ngram_min = st.slider("Min N-gram", 1, 5, DEFAULT_PARAMS['ngram_min'], help="The minimum size of word sequences to consider as a keyword. A value of 1 means single words (unigrams).")
-        ngram_max = st.slider("Max N-gram", 1, 5, DEFAULT_PARAMS['ngram_max'], help="The maximum size of word sequences. A value of 3 means sequences of up to three words (trigrams) can be keywords.")
-        min_df = st.slider("Min Doc Frequency", 1, 50, DEFAULT_PARAMS['min_df'], step=5, help="The minimum number of documents a word must appear in to be considered a keyword. Helps remove very rare words.")
-        stopwords = st.select_slider("Stopwords", ['english', None], value=DEFAULT_PARAMS['stopwords'], help="Removes common words (like 'the', 'is', 'a'). Select 'english' for English text. Select 'None' to not remove any.")
-    with st.sidebar.expander("UMAP Parameters", expanded=True):
-        umap_neighbors = st.slider("n_neighbors", 2, 50, DEFAULT_PARAMS['umap_neighbors'], step=5, help="Controls how UMAP balances local versus global structure. Lower values focus on local details, higher values on the bigger picture.")
-        umap_components = st.slider("n_components", 2, 50, DEFAULT_PARAMS['umap_components'], step=5, help="The number of dimensions to reduce the data to before clustering. The default is often sufficient.")
-        umap_min_dist = st.slider("min_dist", 0.0, 0.99, DEFAULT_PARAMS['min_dist'], step=0.01, help="Controls how tightly UMAP packs points together. Lower values create more dense clusters, higher values create more dispersed ones.")
-    with st.sidebar.expander("HDBSCAN Parameters", expanded=True):
-        hdbscan_min_cluster_size = st.slider("min_cluster_size", 10, 200, DEFAULT_PARAMS['hdbscan_min_cluster_size'], step=5, help="The smallest number of documents required to form a distinct topic. Higher values lead to fewer, broader topics.")
-        hdbscan_min_samples = st.slider("min_samples", 2, 100, DEFAULT_PARAMS['hdbscan_min_samples'], step=5, help="How conservative the clustering is. Higher values make the model more likely to declare documents as outliers rather than assigning them to a topic.")
-    with st.sidebar.expander("BERTopic Parameters", expanded=True):
-        bt_nr_topics = st.text_input("Number of Topics (nr_topics)", value=DEFAULT_PARAMS['bt_nr_topics'], help="Set to a specific number to merge topics until you have that many. Set to 'auto' to let HDBSCAN decide.")
-        bt_top_n_words = st.slider("Top N Words", 5, 25, DEFAULT_PARAMS['bt_top_n_words'], help="The number of keywords to generate for each topic's basic representation.")
-    current_config = {"embedding_model": selected_embedding_model, "granularity": granularity_label, "subsample_percent": subsample_perc, "use_vectorizer": use_vectorizer, "vectorizer_params": {'ngram_range': (ngram_min, ngram_max), 'min_df': min_df, 'stop_words': stopwords}, "umap_params": {'n_neighbors': umap_neighbors, 'n_components': umap_components, 'min_dist': umap_min_dist}, "hdbscan_params": {'min_cluster_size': hdbscan_min_cluster_size, 'min_samples': hdbscan_min_samples}, "bt_params": {'nr_topics': bt_nr_topics, 'top_n_words': bt_top_n_words}}
+
+    use_vectorizer = st.sidebar.checkbox("Use CountVectorizer", value=True)
+
+    with st.sidebar.expander("Vectorizer"):
+        ng_min = st.slider("Min N-gram", 1, 5, 1)
+        ng_max = st.slider("Max N-gram", 1, 5, 3)
+        min_df = st.slider("Min Doc Freq", 1, 50, 1)
+        stopwords = st.select_slider("Stopwords", options=[None, "english"], value=None)
+
+    with st.sidebar.expander("UMAP"):
+        um_n = st.slider("n_neighbors", 2, 50, 15)
+        um_c = st.slider("n_components", 2, 20, 5)
+        um_d = st.slider("min_dist", 0.0, 0.99, 0.0)
+
+    with st.sidebar.expander("HDBSCAN"):
+        hs = st.slider("min_cluster_size", 10, 200, 40)
+        hm = st.slider("min_samples", 2, 100, 30)
+
+    with st.sidebar.expander("BERTopic"):
+        nr_topics   = st.text_input("nr_topics", value="auto")
+        top_n_words = st.slider("top_n_words", 5, 25, 15)
+
+    # --- Build config ---
+    current_config = {
+        "embedding_model": selected_embedding_model,
+        "granularity": granularity_label,
+        "subsample_percent": subsample_perc,
+        "use_vectorizer": use_vectorizer,
+        "vectorizer_params": {
+            "ngram_range": (ng_min, ng_max),
+            "min_df": min_df,
+            "stop_words": stopwords,
+        },
+        "umap_params": {
+            "n_neighbors": um_n,
+            "n_components": um_c,
+            "min_dist": um_d,
+        },
+        "hdbscan_params": {
+            "min_cluster_size": hs,
+            "min_samples": hm,
+        },
+        "bt_params": {
+            "nr_topics": nr_topics,
+            "top_n_words": top_n_words,
+        },
+    }
+
+    # --- Run Button ---
     run_button = st.sidebar.button("Run Analysis", type="primary")
+
+
+    # =================================================================
+    # 9. Visualization & History Tabs
+    # =================================================================
     main_tab, history_tab = st.tabs(["Main Results", "Run History"])
-    if 'history' not in st.session_state: st.session_state.history = load_history()
+
+    def load_history():
+        path = HISTORY_FILE
+        if not os.path.exists(path):
+            return []
+        try:
+            data = json.load(open(path))
+        except Exception:
+            return []
+        # --- migrate old keys for backward-compat ---
+        for e in data:
+            if "outlier_pct" not in e and "outlier_perc" in e:
+                e["outlier_pct"] = e.pop("outlier_perc")
+        return data
+
+
+    def save_history(h):
+        json.dump(h, open(HISTORY_FILE, "w"), indent=2)
+
+    if "history" not in st.session_state:
+        st.session_state.history = load_history()
+
     if run_button:
-        with st.spinner('Performing topic modeling...'):
-            topic_model, reduced_embeddings, all_labels, num_topics, outlier_perc = perform_topic_modeling(docs, embeddings, get_config_hash(current_config))
-            st.session_state.latest_results = (topic_model, reduced_embeddings, all_labels)
-            history_entry = {"timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"), "config": current_config, "num_topics": num_topics, "outlier_perc": f"{outlier_perc:.2f}%", "llm_labels": [l for l in topic_model.get_topic_info().Name.values if "Unlabelled" not in l and "outlier" not in l]}
-            st.session_state.history.insert(0, history_entry)
-            save_history(st.session_state.history)
-            st.rerun()
+        with st.spinner("Performing topic modeling..."):
+            model, reduced, labels, n_topics, outlier_pct = perform_topic_modeling(
+                docs, embeddings, get_config_hash(current_config)
+            )
+        st.session_state.latest_results = (model, reduced, labels)
+
+        # Save in history
+        entry = {
+            "timestamp": str(pd.Timestamp.now()),
+            "config": current_config,
+            "num_topics": n_topics,
+            "outlier_pct": f"{outlier_pct:.2f}%",
+            "llm_labels": [
+                name for name in model.get_topic_info().Name.values
+                if ("Unlabelled" not in name and "outlier" not in name)
+            ],
+        }
+        st.session_state.history.insert(0, entry)
+        save_history(st.session_state.history)
+        st.rerun()
+
+    # --- MAIN TAB ---
     with main_tab:
-        if 'latest_results' in st.session_state:
-            st.header("Topic Visualization")
-            fig, _ = datamapplot.create_plot(st.session_state.latest_results[1], st.session_state.latest_results[2])
+        if "latest_results" in st.session_state:
+            tm, reduced, labs = st.session_state.latest_results
+
+            st.subheader("Topic Visualization")
+            fig, _ = datamapplot.create_plot(reduced, labs)
             st.pyplot(fig)
-            st.subheader("Topic Information")
-            st.dataframe(st.session_state.latest_results[0].get_topic_info())
-        else: st.info("Click 'Run Analysis' in the sidebar to generate results.")
+
+            st.subheader("Topic Info")
+            st.dataframe(tm.get_topic_info())
+        else:
+            st.info("Click 'Run Analysis' to begin.")
+
+    # --- HISTORY TAB ---
     with history_tab:
-        st.header("Run History")
-        if not st.session_state.history: st.info(f"No runs yet. History will be saved to `{HISTORY_FILE}`.")
+        st.subheader("Run History")
+        if not st.session_state.history:
+            st.info("No runs yet.")
         else:
             for i, entry in enumerate(st.session_state.history):
-                config_data = entry.get('config', {})
-                title_model = config_data.get('embedding_model', entry.get('embedding_model', 'Unknown'))
-                title_granularity = config_data.get('granularity', entry.get('granularity', 'Unknown'))
-                title = f"Run {len(st.session_state.history)-i} ({entry.get('timestamp', 'N/A')}) - {title_model} ({title_granularity})"
-                with st.expander(title):
-                    st.write(f"**Topics:** `{entry.get('num_topics')}` | **Outliers:** `{entry.get('outlier_perc')}`")
-                    st.write("**LLM-Generated Labels:**")
-                    st.write(entry.get('llm_labels', []))
-                    with st.expander("Show full configuration for this run"): st.json(config_data)
+                with st.expander(f"Run {i+1} — {entry['timestamp']}"):
+                    st.write(f"**Topics:** {entry['num_topics']}")
+                    st.write(f"**Outliers:** {entry.get('outlier_pct', entry.get('outlier_perc', 'N/A'))}")
+                    st.write("**LLM Labels:**")
+                    st.write(entry["llm_labels"])
+                    with st.expander("Show full configuration"):
+                        st.json(entry["config"])
