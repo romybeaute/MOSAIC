@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mosaic"
+version = "0.1.0"
+description = "MOSAIC utilities"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Romy Beauté", email = "r.beaut@sussex.ac.uk" }]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["mosaic*"]
+
+[tool.setuptools.package-data]
+mosaic = ["configs/*.yaml"]

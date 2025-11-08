@@ -33,7 +33,7 @@ except Exception as e:
 
 
 project = "multilingual"
-MOSAIC_dir = "/Users/rbeaute/Projects/MOSAIC"  
+MOSAIC_dir = "/Users/rb666/Projects/MOSAIC"  
 DATA_dir = os.path.join(MOSAIC_dir, f'DATA/{project}')
 cache_dir = os.path.join(DATA_dir, "cache")
 
