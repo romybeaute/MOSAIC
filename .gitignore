@@ -36,14 +36,13 @@ MOSAIC.egg-info/
 
 
 .env
-
 #add any .json files
 *.json
 
 #ignore all the .txt files
 *.txt
 
-#ignore Projects directory (as helpers for me for other projects)
-/Projects/
+#ignore experiments directory (as helpers for me for other projects)
+/experiments/
 
 EVAL/
