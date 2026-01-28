@@ -1,101 +1,180 @@
 # MOSAIC: Mapping Of Subjective Accounts into Interpreted Clusters
 
-Topic modelling pipeline for consciousness-related textual data using BERTopic, BERT embeddings, and UMAP-HDBSCAN clustering.
+A comprehensive topic modeling pipeline for consciousness-related textual data across multiple datasets, using BERTopic, BERT embeddings, and UMAP-HDBSCAN clustering with multilingual support.
 
 ## Overview
 
-MOSAIC analyses subjective experiential reports through:
-- Advanced NLP with BERT embeddings
+MOSAIC is a research framework that analyzes subjective experiential reports from various consciousness studies through:
+- Advanced NLP with BERT embeddings and multilingual models
 - Dimensionality reduction via UMAP
 - Density-based clustering with HDBSCAN
-- Hyperparameter optimisation with Optuna
-- Topic coherence optimisation
-- Large Language Model integration with Llama CPP for deeper insights.
+- Hyperparameter optimization with Optuna
+- Topic coherence optimization
+- Large Language Model integration with Llama CPP for deeper insights
+- Support for multiple datasets and languages
 
-## Structure
+## Supported Datasets
+
+This repository contains analysis pipelines for several consciousness research datasets:
+
+- **Dreamachine**: Stroboscopic light-induced altered states of consciousness
+- **Inner Speech**: Japanese phenomenological reports on inner speech experiences
+- **Depression/MPE**: Mental health and psychological experience reports  
+- **NDE**: Near-death experience accounts
+- **Ganzfeld**: Sensory deprivation experimental reports
+
+## Project Structure
 
 ```
 MOSAIC/
-├── src/                    # Core functionality
-│   ├── preprocessor.py     # Text cleaning, sentence splitting
-│   ├── model.py            # BERTopic configuration
-│   ├── utils.py            # Metrics and helpers
-│   ├── optuna_search.py    # Hyperparameter search with Optuna
-│   ├── llama_CPP_custom.py # Integration with Llama CPP
-│   ├── prepare_data.ipynb  # Notebook for data preparation
-│   └── preprocess_data_API.ipynb # Notebook for preprocessing data from an API
-├── configs/                # Experiment parameters
-│   └── dreamachine2.py     # Dataset-specific settings
-├── scripts/                # Analysis tools
-│   ├── dreamachine.ipynb   # Jupyter notebook for analysis
-│   └── ...                 # Other analysis notebooks
-└── EVAL/                   # Evaluation scripts and results
-    ├── conditions_similarity.ipynb
-    └── stability_tests/
+├── src/                           # Core functionality
+│   ├── preprocessor.py            # Text cleaning, sentence splitting
+│   ├── model.py                   # BERTopic configuration
+│   ├── utils.py                   # Metrics and helper functions
+│   ├── optuna_search.py           # Hyperparameter search with Optuna
+│   └── optuna_search_allmetrics.py # Multi-objective optimization
+├── configs/                       # Dataset-specific configurations
+│   └── dreamachine2.py           # Dreamachine dataset settings
+├── preproc/                       # Data preprocessing utilities
+│   ├── prepare_data.ipynb        # Data preparation notebook
+│   └── preprocess_data_*.ipynb   # Dataset-specific preprocessing
+├── scripts/                       # Analysis notebooks and tools
+├── EVAL/                          # Model evaluation and analysis
+│   ├── dreamachine/              # Dreamachine-specific evaluations
+│   │   ├── demographics.ipynb    # Demographic analysis
+│   │   └── stability_tests/      # Model stability testing
+│   ├── conditions_similarity.ipynb # Cross-condition comparisons
+│   └── optuna_search/            # Hyperparameter optimization results
+├── MULTILINGUAL/                  # Multilingual analysis pipeline
+│   ├── DREAMACHINE/              # Multilingual Dreamachine analysis
+│   ├── INNERSPEECH/              # Japanese inner speech analysis
+│   │   ├── app.py               # Streamlit dashboard
+│   │   ├── app_hosted.py        # Hosted version of dashboard
+│   │   └── local_translator.py  # Local translation utilities
+│   ├── translate/                # Translation utilities
+│   └── prepare_data.ipynb        # Multilingual data preparation
+├── DATA/                          # Local data storage
+├── pyproject.toml                # Project configuration and dependencies
+├── requirements.txt              # Python dependencies
+└── .mosaicvenv/                  # Virtual environment
 ```
 
-### Source (`src/`)
+## Key Features
 
-- preprocessor.py: Text preprocessing and cleaning, and sentence splitting.
-- model.py: BERTopic configuration, UMAP dimensionality reduction, and HDBSCAN clustering.
-- utils.py: Coherence metrics and helper functions.
-- optuna_search.py: Hyperparameter optimisation using Optuna.
-- llama_CPP_custom.py: Custom functions for interacting with Llama CPP.
-- prepare_data.ipynb: Notebook for preparing the data.
-- preprocess_data_API.ipynb: Notebook for preprocessing data from an API.
+### Core Analysis Pipeline
+- **Preprocessing**: Text cleaning, sentence splitting, duplicate removal
+- **Embedding**: Support for multiple transformer models (Qwen, E5, BGE, etc.)
+- **Clustering**: UMAP dimensionality reduction + HDBSCAN clustering  
+- **Topic Modeling**: BERTopic with custom representation models
+- **Evaluation**: Coherence metrics, stability testing, bootstrap analysis
 
-### Configs (`configs/`)
+### Multilingual Support
+- Translation pipelines for non-English datasets
+- Support for Japanese text processing
+- API-based and local translation options using Llama models
 
-- `dreamachine2.py`
-  - Dataset-specific parameters
-  - Model hyperparameters
-  - Preprocessing settings
+### Interactive Dashboards
+- Streamlit applications for real-time analysis ([`MULTILINGUAL/INNERSPEECH/app.py`](MULTILINGUAL/INNERSPEECH/app.py))
+- Parameter tuning interfaces
+- Visualization tools with datamapplot integration
 
-### Scripts (`scripts/`)
-
-- This directory contains Jupyter notebooks for running experiments and analyzing results.
-
-
-### Scripts (`EVAL/`)
-- This directory contains scripts and notebooks for evaluating the model's performance, including stability tests and similarity analyses.
-
-
+### Hyperparameter Optimization
+- Optuna-based search for optimal model parameters
+- Multi-objective optimization across multiple metrics
+- Dataset-specific parameter spaces
 
 ## Installation
 
+1. Clone the repository:
 ```bash
 git clone https://github.com/romybeaute/MOSAIC.git
 cd MOSAIC
-# Create and activate virtual environment
-python3 -m venv .mosaicvenv
-source .mosaicvenv/bin/activate
-pip install -e .
-
-
-
-# Install dependencies
-pip install pandas sentence-transformers scikit-learn tqdm nltk bertopic umap-learn hdbscan gensim
-or
-pip install -r requirements.txt
 ```
+
+2. Create and activate virtual environment:
+```bash
+python3 -m venv .mosaicvenv
+source .mosaicvenv/bin/activate  # On Windows: .mosaicvenv\Scripts\activate
+```
+
+3. Install the package in development mode:
+```bash
+pip install -e .
+```
+
+This will install all dependencies specified in [`pyproject.toml`](pyproject.toml) and make the MOSAIC package available for import.
 
 ## Usage
 
-The primary way to use MOSAIC is through the Jupyter notebooks in the scripts/ directory. These notebooks provide a step-by-step guide for running the topic modeling pipeline, from data preprocessing to model evaluation.
+### Basic Analysis
+The primary way to use MOSAIC is through Jupyter notebooks in the [`scripts/`](scripts/) directory and dataset-specific folders:
 
-To run the hyperparameter optimisation, you can use the optuna_search.py script:
-
+```bash
+# Navigate to analysis notebooks
+cd EVAL/dreamachine/
+jupyter lab demographics.ipynb
 ```
-python src/optuna_search.py --dataset your_dataset --condition COND --sentences
+
+### Hyperparameter Optimization
+Run hyperparameter search using Optuna:
+
+```bash
+python src/optuna_search.py --dataset dreamachine --condition DL --sentences --n_trials 200
 ```
 
 Parameters:
-- `--dataset`: Dataset name
-- `--condition`: Experimental condition [HS, DL, HW]
+- `--dataset`: Dataset name (dreamachine, innerspeech, etc.)
+- `--condition`: Experimental condition (HS, DL, HW)
 - `--sentences`: Enable sentence-level analysis
+- `--n_trials`: Number of optimization trials
+
+### Interactive Dashboard
+Launch the Streamlit dashboard for interactive analysis:
+
+```bash
+streamlit run MULTILINGUAL/INNERSPEECH/app.py
+```
+
+### Translation Pipeline
+For multilingual datasets, use the translation utilities:
+
+```bash
+python MULTILINGUAL/translate/local_translator.py \
+    --dataset nde \
+    --input-csv NDE_reflection_reports.csv \
+    --text-column reflection_answer \
+    --model llama \
+    --task translate \
+    --num-samples 100
+```
+
+## Configuration
+
+Dataset-specific configurations are stored in the [`configs/`](configs/) directory. Example configuration for Dreamachine dataset in [`configs/dreamachine2.py`](configs/dreamachine2.py):
+
+```python
+class DreamachineConfig:
+    def __init__(self):
+        self.transformer_model = "Qwen/Qwen3-Embedding-0.6B"
+        self.ngram_range = (1, 3)
+        self.top_n_words = 15
+        # ... other parameters
+```
+
+## Development
+
+The project uses a modular structure:
+- Core functionality in [`src/`](src/)
+- Dataset-specific code in respective folders
+- Shared utilities in [`DATA/helpers.py`](DATA/helpers.py)
+- Path management through `mosaic.path_utils`
 
 ## Citation
 
 If using this code, please cite:
-- Analysing the phenomenology of stroboscopically induced phenomena using natural language topic modelling (Beauté et al.,2024)
-- BERTopic: Neural topic modeling with a class-based TF-IDF procedure (M. Grootendorst, 2022)
+- Beauté, R. et al. (2024). Analysing the phenomenology of stroboscopically induced phenomena using natural language topic modelling
+- Grootendorst, M. (2022). BERTopic: Neural topic modeling with a class-based TF-IDF procedure
+
+## License
+
+See [`LICENSE`](LICENSE) for details.
