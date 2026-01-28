@@ -43,6 +43,7 @@ Sample sentences from this topic:
 Keywords:
 - c-TF-IDF: [KEYWORDS]
 - KeyBERT: [KEYBERT_KEYWORDS]
+- MMR: [MMR_KEYWORDS]
 
 Topic name:"""
 
@@ -190,10 +191,11 @@ class PhenoLabeler(BaseRepresentation):
             #Get the extra keywords set
             row = topic_info_df.loc[topic_info_df.Topic == topic].iloc[0]
             keybert_kws = ", ".join(row['KeyBERT'])
+            mmr_kws = ", ".join(row['MMR'])
 
             # Prepare prompt
             truncated_docs = [truncate_document(topic_model, self.doc_length, self.tokenizer, doc) for doc in docs]
-            prompt = self._create_prompt(truncated_docs, topic, topics,keybert_kws)
+            prompt = self._create_prompt(truncated_docs, topic, topics,keybert_kws,mmr_kws)
             self.prompts_.append(prompt)
 
 
@@ -208,13 +210,14 @@ class PhenoLabeler(BaseRepresentation):
 
         return updated_topics
 
-    def _create_prompt(self, docs, topic, topics,keybert_kws):
+    def _create_prompt(self, docs, topic, topics,keybert_kws,mmr_kws):
         keywords = list(zip(*topics[topic]))[0] #gets the default c-tf-idf keywords
 
         # Use the Default Chat Prompt
         if self.prompt == self.default_prompt_:
             prompt = self.prompt.replace("[KEYWORDS]", ", ".join(keywords))
-            prompt = prompt.replace("[KEYBERT_KEYWORDS]", keybert_kws)        
+            prompt = prompt.replace("[KEYBERT_KEYWORDS]", keybert_kws)
+            prompt = prompt.replace("[MMR_KEYWORDS]", mmr_kws)        
             prompt = self._replace_sentences(prompt, docs)
 
         # Use a custom prompt that leverages keywords, sentences or both using
@@ -225,6 +228,8 @@ class PhenoLabeler(BaseRepresentation):
                 prompt = prompt.replace("[KEYWORDS]", ", ".join(keywords))
             if "[KEYBERT_KEYWORDS]" in prompt:                          
                 prompt = prompt.replace("[KEYBERT_KEYWORDS]", keybert_kws)
+            if "[MMR_KEYWORDS]" in prompt:                          
+                prompt = prompt.replace("[MMR_KEYWORDS]", mmr_kws)
             if "[SENTENCES]" in prompt:
                 prompt = self._replace_sentences(prompt, docs)
 

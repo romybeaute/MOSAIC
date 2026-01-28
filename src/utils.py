@@ -24,6 +24,9 @@ import numpy as np
 import pandas as pd
 import itertools
 
+
+
+
 def calculate_embedding_coherence(model, docs, embeddings):
     """
     Calculate the average intra-topic cosine similarity for a BERTopic model.
@@ -88,7 +91,7 @@ def calculate_coherence(topic_model, data):
     
     if not topic_words:
         print("No valid topics found for coherence calculation")
-        return float('nan'), float('nan')
+        return float('nan')
     
     # extract features for Topic Coherence evaluation
     vectorizer = topic_model.vectorizer_model
@@ -108,21 +111,13 @@ def calculate_coherence(topic_model, data):
         )
         coherence_score = coherence_model.get_coherence()
 
-        coherence_model_umass = CoherenceModel(
-            topics=topic_words,
-            texts=tokens,
-            corpus=corpus,
-            dictionary=dictionary,
-            coherence='u_mass'
-        )
-        coherence_score_umass = coherence_model_umass.get_coherence()
         
         print(f"Number of valid topics used for coherence calculation (excludes outliers -1): {len(topic_words)}")
-        return coherence_score, coherence_score_umass
+        return coherence_score
         
     except Exception as e:
         print(f"Error calculating coherence: {str(e)}")
-        return float('nan'), float('nan')
+        return float('nan')
 
 
 

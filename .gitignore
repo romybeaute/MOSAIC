@@ -20,7 +20,9 @@ __pycache__/
 *.out*.code-workspace
 
 # Ignore results directory & HPC log files
-RESULTS/
+
+*.csv
+*.db
 *.out*.code-workspace
 
 #ignore MOSAIC.egg-info
@@ -48,3 +50,5 @@ MULTILINGUAL/NDE/*
 !MULTILINGUAL/MPE/.gitkeep
 !MULTILINGUAL/NDE/.gitkeep
 
+
+EVAL/
