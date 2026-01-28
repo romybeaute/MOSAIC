@@ -1,4 +1,3 @@
-
 # MOSAIC: Mapping Of Subjective Accounts into Interpreted Clusters
 
 Topic modelling pipeline for consciousness-related textual data using BERTopic, BERT embeddings, and UMAP-HDBSCAN clustering.
