@@ -34,6 +34,7 @@ MOSAIC.egg-info/
 !/DATA/.gitkeep
 .DS_Store
 
+
 .env
 
 #add any .json files
@@ -42,12 +43,7 @@ MOSAIC.egg-info/
 #ignore all the .txt files
 *.txt
 
-#ignore the content of MPE and NDE directories, but not the directories themselves
-MULTILINGUAL/MPE/*
-MULTILINGUAL/NDE/*
-# dont ignore the .gitkeep files in MPE and NDE directories
-!MULTILINGUAL/MPE/.gitkeep
-!MULTILINGUAL/NDE/.gitkeep
-
+#ignore Projects directory (as helpers for me for other projects)
+/Projects/
 
 EVAL/
