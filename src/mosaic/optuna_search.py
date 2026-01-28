@@ -27,8 +27,8 @@ project_root = os.path.dirname(script_dir)
 sys.path.append(project_root)
 
 # Make sure you have the updated utils.py with this function
-from src.model import run_bertopic
-from preproc.preprocessing import split_sentences
+from .model import run_bertopic
+from .preprocessing.preprocessing import split_sentences
 
 os.environ["TOKENIZERS_PARALLELISM"] = "True"
 os.environ["HF_HUB_OFFLINE"] = "1"

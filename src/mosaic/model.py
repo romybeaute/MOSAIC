@@ -3,7 +3,7 @@ from umap.umap_ import UMAP
 from hdbscan import HDBSCAN
 from bertopic.representation import KeyBERTInspired
 
-from src.utils import calculate_coherence,calculate_embedding_coherence
+from mosaic.utils import calculate_coherence,calculate_embedding_coherence
 
 
 def setup_model(umap_model, hdbscan_model, embedding_model, vectorizer_model, representation_model, top_n_words, nr_topics="auto"):
