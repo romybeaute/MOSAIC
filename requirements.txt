@@ -1,10 +1,10 @@
-# Main data science and machine learning stack
+# Main DS and ML stacks
 numpy
 pandas
 scikit-learn
 torch
 
-# NLP and Topic Modeling
+# NLP and Topic Modelling
 bertopic
 gensim
 spacy
@@ -19,12 +19,12 @@ bitsandbytes
 datasets
 llama-cpp-python
 
-# Dimensionality Reduction and Clustering
+# Dimensionality reduction and clustering
 # Core components for BERTopic's backend
 umap
 hdbscan
 
-# Visualization and Notebooks
+# Visualisation and notebooks
 matplotlib
 seaborn
 wordcloud

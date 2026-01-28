@@ -2,7 +2,6 @@
 .mosaicvenv/
 .venv/
 .mosavenv/
-.python-version
 
 # Ignore Llama model files
 models/
