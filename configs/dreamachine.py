@@ -1,9 +1,4 @@
 
-
-
-
-
-
 #############################################################################
 ################ DREAMACHINE DATASET CONFIGURATION ##########################
 #############################################################################
@@ -11,7 +6,7 @@
 class DreamachineConfig:
     def __init__(self):
         from nltk.corpus import stopwords
-        self.reduced_custom_stopwords = {}#{'felt','like','felt like','feel','experience','experienced'}#{'thank', 'thanks', 'thank you','Thank','felt','felt like','experience','experienced'}
+        self.reduced_custom_stopwords = {}
         self.stop_words = set(stopwords.words('english'))
         self.extended_stop_words = self.stop_words.union(self.reduced_custom_stopwords)
         
