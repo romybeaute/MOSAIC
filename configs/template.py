@@ -1,11 +1,14 @@
 
 #############################################################################
-################ DREAMACHINE DATASET CONFIGURATION ##########################
+################ DATASET CONFIGURATION TEMPLATE ##########################
 
-#Change params for new datasets here
+#Change params for specific dataset here
+#Replace the name of the script with the name of the dataset used
+#Replace the name of the class and the config instance with the bname of the dataset used
+#Replace the name of the condition(s) with the one(s) relevant to the dataset
 #############################################################################
 
-class DreamachineConfig:
+class TemplateConfig:
     def __init__(self):
         from nltk.corpus import stopwords
         self.reduced_custom_stopwords = {}
@@ -13,9 +16,9 @@ class DreamachineConfig:
         self.extended_stop_words = self.stop_words.union(self.reduced_custom_stopwords)
         
         # Dataset specific configurations
-        self.name = "dreamachine"
+        self.name = "template"
         self.transformer_model = "Qwen/Qwen3-Embedding-0.6B"
-        self.ngram_range = (1, 3)
+        self.ngram_range = (1, 2)
         self.max_df = 0.95
         self.min_df = 2
         self.top_n_words = 15
@@ -23,9 +26,8 @@ class DreamachineConfig:
     def get_default_params(self, condition):
         """
         Returns a single set of default hyperparameters based on the condition.
-        These are derived from the optimal values found in the original paper.
         """
-        if condition == 'HS':
+        if condition == 'condition1':
             return {
                 'n_neighbors': 15,
                 'n_components': 10,
@@ -34,7 +36,7 @@ class DreamachineConfig:
                 'min_samples': 5,
                 'top_n_words': self.top_n_words  # Using a good default for keyword extraction
             }
-        elif condition == 'DL':
+        elif condition == 'condition2':
             return {
                 'n_neighbors': 10,
                 'n_components': 5,
@@ -66,7 +68,7 @@ class DreamachineConfig:
 
 
     def _get_full_params(self,condition):
-        if condition == 'HS':
+        if condition == 'condition1':
             return {'umap_params': {
                     'n_components': [5,10,15], 
                     'n_neighbors': [10,15,20,25],
@@ -76,7 +78,7 @@ class DreamachineConfig:
                     'min_cluster_size': [5,10,15], 
                     'min_samples': [5,10],
                 }}
-        elif condition == 'DL':
+        elif condition == 'condition2':
             return {'umap_params': {
                     'n_components': list(range(2, 10)), 
                     'n_neighbors': [5,10,15],
@@ -99,7 +101,7 @@ class DreamachineConfig:
 
 
     def _get_reduced_params(self,condition):
-        if condition == 'HS':
+        if condition == 'condition1':
             return {'umap_params': {
                     'n_components': [10],
                     'n_neighbors': [15],
@@ -109,7 +111,7 @@ class DreamachineConfig:
                     'min_cluster_size': [10],
                     'min_samples': [5],
                 }}
-        elif condition == 'DL':
+        elif condition == 'condition2':
             return {'umap_params': {
                     'n_components': [5],
                     'n_neighbors': [10],
@@ -132,4 +134,4 @@ class DreamachineConfig:
         
 
 # create instance of the config class
-config = DreamachineConfig()
+config = TemplateConfig()
