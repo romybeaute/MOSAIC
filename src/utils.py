@@ -3,12 +3,64 @@
 # ==============================================================================
 # title           : utils.py
 # description     : Define helpers functions
-#                   Condition can be either HS,DL or HW (if for Dreamachine dataset)
 # author          : Romy, Beauté (r.beaut@sussex.ac.uk)
 # date            : 2024-07-25
 # ==============================================================================
 
 
+
+import pandas as pd
+import json
+import pickle
+
+
+def load_data_file(raw_file):
+    """
+    Load data from a raw file into a pandas DataFrame.
+    Supports CSV, TSV, JSON, Excel, Pickle, Parquet, and TXT formats.
+    """
+    
+    suffix = raw_file.suffix.lower()
+
+    if suffix in [".csv"]:
+        df = pd.read_csv(raw_file)
+
+    elif suffix in [".tsv", ".tab"]:
+        df = pd.read_csv(raw_file, sep="\t")
+
+    elif suffix in [".json"]:
+        with raw_file.open() as f:
+            data = json.load(f)
+        # Convert JSON list/dict to DataFrame if possible
+        if isinstance(data, list):
+            df = pd.DataFrame(data)
+        else:
+            df = pd.json_normalize(data)
+
+    elif suffix in [".xlsx", ".xls"]:
+        df = pd.read_excel(raw_file)
+
+    elif suffix in [".pkl", ".pickle"]:
+        with raw_file.open("rb") as f:
+            data = pickle.load(f)
+        # Try to convert to DataFrame if it’s a list/dict
+        if isinstance(data, dict) or isinstance(data, list):
+            df = pd.DataFrame(data)
+        else:
+            raise TypeError("Pickle loaded but cannot be converted to DataFrame.")
+
+    elif suffix in [".parquet"]:
+        df = pd.read_parquet(raw_file)
+
+    elif suffix in [".txt"]:
+        # Fallback: load as plain text
+        df = pd.DataFrame({"text": raw_file.read_text().splitlines()})
+
+    else:
+        raise ValueError(f"Unsupported file type: {suffix}")
+
+    print("\nLoaded data shape:", df.shape)
+    return df
 
 
 
