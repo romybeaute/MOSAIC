@@ -19,7 +19,6 @@ import csv
 import optuna
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import CountVectorizer
-# CHANGED: Import the multi-objective sampler
 from optuna.samplers import TPESampler, NSGAIISampler
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,7 +27,7 @@ sys.path.append(project_root)
 
 # Make sure you have the updated utils.py with this function
 from .model import run_bertopic
-from .preprocessing.preprocessing import split_sentences
+from .preprocessing.preprocessing import split_sentences, basic_preprocess
 
 os.environ["TOKENIZERS_PARALLELISM"] = "True"
 os.environ["HF_HUB_OFFLINE"] = "1"
@@ -43,7 +42,7 @@ class OptunaSearchBERTopic:
         self.random_seed = 42
 
         if dataset == "dreamachine":
-            from configs.dreamachine import config 
+            from mosaic.configs.dreamachine import config 
             self.dataset_config = config
         else:
             raise ValueError(f"Unrecognised dataset: {dataset}")
@@ -138,34 +137,7 @@ class OptunaSearchBERTopic:
             }
         return params
     
-    def _define_search_space(self, trial):
-        """Define the hyperparameter search space for Optuna based on the condition."""
-        # Search space definitions remain the same
-        if self.condition == 'DL':
-            params = {
-                'n_components': trial.suggest_int('n_components', 5, 15),
-                'n_neighbors': trial.suggest_int('n_neighbors', 5, 15),
-                'min_dist': trial.suggest_float('min_dist', 0.0, 0.05,step=0.005),
-                'min_cluster_size': trial.suggest_int('min_cluster_size', 7, 10),
-                'min_samples': trial.suggest_int('min_samples', 5, 10),
-            }
-        elif self.condition == 'HS':
-            params = {
-                'n_components': trial.suggest_int('n_components', 13, 20),
-                'n_neighbors': trial.suggest_int('n_neighbors', 15, 26),
-                'min_dist': trial.suggest_float('min_dist', 0.015, 0.02,step=0.005),
-                'min_cluster_size': trial.suggest_int('min_cluster_size', 10, 10),
-                'min_samples': trial.suggest_int('min_samples', 8, 8),
-            }
-        else: # Generic default
-            params = {
-                'n_components': trial.suggest_int('n_components', 5, 25),
-                'n_neighbors': trial.suggest_int('n_neighbors', 10, 35),
-                'min_dist': trial.suggest_float('min_dist', 0.0, 0.05,step=0.005),
-                'min_cluster_size': trial.suggest_int('min_cluster_size', 10, 50),
-                'min_samples': trial.suggest_int('min_samples', 5, 25),
-            }
-        return params
+
 
 
     def objective(self, trial):
@@ -262,11 +234,11 @@ class OptunaSearchBERTopic:
         print(f"Found {len(study.best_trials)} optimal trials.")
         for i, trial in enumerate(study.best_trials):
             print(f"\n--- Trial {trial.number} (Solution {i+1}) ---")
-            print(f"  🎯 Objectives:")
-            print(f"    - Embedding Coherence: {trial.values[0]:.4f} (Higher is better)")
-            print(f"    - C_v Coherence:       {trial.values[1]:.4f} (Higher is better)")
+            print(f"Objectives:")
+            print(f"  - Embedding Coherence: {trial.values[0]:.4f} (Higher is better)")
+            print(f"  - C_v Coherence:       {trial.values[1]:.4f} (Higher is better)")
             # print(f"    - Inter-Topic Sim:     {trial.values[2]:.4f} (Lower is better)")
-            print("  🔧 Parameters:")
+            print("  Parameters:")
             for key, value in trial.params.items():
                 print(f"    - {key}: {value}")
 
