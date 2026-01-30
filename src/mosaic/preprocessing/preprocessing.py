@@ -7,8 +7,10 @@
 #                   - Deterministic Llama (temperature=0, seed=42, no cropping)
 #                   - Optional max_text_length filtering
 #                   - Auto-config dataset naming
-# author          : Romy, Beauté (r.beaut@sussex.ac.uk)
-# date            : 2026-01-29
+#                   - FIXED: Forces gemini-2.0-flash-lite 
+#                   - FIXED: No retry during processing (mark errors, retry later)
+# author          : Romy, Beaute (r.beaut@sussex.ac.uk)
+# date            : 2026-01-30
 # ==============================================================================
 
 import pandas as pd
@@ -147,7 +149,7 @@ def preflight_check(texts, model_context_window=16384, chars_per_token=4):
         Dictionary with analysis results
     """
     print(f"\n{'='*80}")
-    print("📋 PRE-FLIGHT CHECK: Analyzing reports before processing...")
+    print("PRE-FLIGHT CHECK: Analyzing reports before processing...")
     print(f"{'='*80}\n")
     
     # Calculate stats
@@ -183,36 +185,36 @@ def preflight_check(texts, model_context_window=16384, chars_per_token=4):
     print(f"  Longest report:        {max_chars:,} chars (~{max_tokens:,.0f} tokens)")
     print(f"")
     print(f"RISK ASSESSMENT:")
-    print(f"  ✅ Safe (<{int(safe_tokens)} tokens):       {safe_count:>4} reports ({safe_count/total_reports*100:.1f}%)")
-    print(f"  ⚠️  Warning (may truncate):    {warning_count:>4} reports ({warning_count/total_reports*100:.1f}%)")
-    print(f"  🔴 Critical (likely truncate): {critical_count:>4} reports ({critical_count/total_reports*100:.1f}%)")
+    print(f"  Safe (<{int(safe_tokens)} tokens):       {safe_count:>4} reports ({safe_count/total_reports*100:.1f}%)")
+    print(f"  Warning (may truncate):    {warning_count:>4} reports ({warning_count/total_reports*100:.1f}%)")
+    print(f"  Critical (likely truncate): {critical_count:>4} reports ({critical_count/total_reports*100:.1f}%)")
     
     # Detailed warnings for problematic reports
     if problematic_indices:
         print(f"\n{'='*80}")
-        print(f"⚠️  REPORTS AT RISK OF TRUNCATION:")
+        print(f"REPORTS AT RISK OF TRUNCATION:")
         print(f"{'='*80}")
         for idx in problematic_indices[:10]:  # Show max 10
             chars = char_counts[idx]
             tokens = token_estimates[idx]
-            risk = "🔴 CRITICAL" if tokens > critical_tokens else "⚠️  WARNING"
-            print(f"  Report {idx}: {chars:,} chars (~{tokens:,.0f} tokens) {risk}")
+            risk = "CRITICAL" if tokens > critical_tokens else "WARNING"
+            print(f"  Report {idx}: {chars:,} chars (~{tokens:,.0f} tokens) [{risk}]")
         if len(problematic_indices) > 10:
             print(f"  ... and {len(problematic_indices) - 10} more")
     
     # Recommendation
     print(f"\n{'='*80}")
     if critical_count > 0:
-        print(f"🔴 RECOMMENDATION: {critical_count} reports may be truncated!")
+        print(f"RECOMMENDATION: {critical_count} reports may be truncated!")
         print(f"   Options:")
         print(f"   1. Increase n_ctx to 32768 (if your GPU has enough VRAM)")
         print(f"   2. Use --max-text-length {int(safe_tokens * chars_per_token)} to skip long reports")
         print(f"   3. Use Gemini API instead (1M token context)")
     elif warning_count > 0:
-        print(f"⚠️  RECOMMENDATION: {warning_count} reports are borderline.")
+        print(f"RECOMMENDATION: {warning_count} reports are borderline.")
         print(f"   Processing should work, but monitor for truncation warnings.")
     else:
-        print(f"✅ ALL REPORTS LOOK SAFE! No truncation expected.")
+        print(f"ALL REPORTS LOOK SAFE! No truncation expected.")
     print(f"{'='*80}\n")
     
     return {
@@ -265,7 +267,7 @@ def preprocess_with_local_llama(csv_path, output_path,
     df_to_process = df.head(num_samples).copy() if num_samples else df.copy()
     print(f"Processing: {len(df_to_process)} reports")
     
-    # PATCHED: Run pre-flight check before processing
+    # Run pre-flight check before processing
     preflight_results = preflight_check(
         df_to_process[text_column].tolist(),
         model_context_window=n_ctx
@@ -273,7 +275,7 @@ def preprocess_with_local_llama(csv_path, output_path,
     
     # Ask user to confirm if there are critical reports
     if preflight_results['critical_count'] > 0:
-        print("\n⚠️  Some reports may be truncated. Continue anyway? (Processing will proceed in 5 seconds...)")
+        print("\nWARNING: Some reports may be truncated. Processing will proceed in 5 seconds...")
         time.sleep(5)
 
     # Load Model
@@ -348,7 +350,7 @@ Clean the following text:
             # Apply Safety Net (minimal cleanup)
             final_text = clean_llama_output_programmatically(raw_output)
             
-            # PATCHED: Warn if output is significantly shorter than input
+            # Warn if output is significantly shorter than input
             input_words = len(text.split())
             output_words = len(final_text.split())
             retention = output_words / max(input_words, 1)
@@ -356,7 +358,7 @@ Clean the following text:
             if retention < 0.5:
                 warning_msg = f"Report {idx}: Possible truncation ({output_words}/{input_words} words = {retention:.0%})"
                 error_log.append(warning_msg)
-                print(f"\n {warning_msg}")
+                print(f"\n[WARNING] {warning_msg}")
             
             cleaned_texts.append(final_text)
             
@@ -390,7 +392,7 @@ Clean the following text:
             f.write(f"ERROR DETAILS:\n")
             for err in error_log:
                 f.write(f"{err}\n")
-        print(f"\n⚠ Error log saved to: {log_path}")
+        print(f"\nError log saved to: {log_path}")
     
     # Print summary
     print(f"\n{'='*80}")
@@ -410,43 +412,67 @@ Clean the following text:
 # SECTION 3: API-BASED PREPROCESSING (GEMINI)
 # =============================================================================
 
-def get_best_gemini_model():
+# Model rate limits for reference
+GEMINI_MODEL_LIMITS = {
+    # 'gemini-1.5-flash': {'rpm': 15, 'rpd': 1500},   # BEST for free tier
+    # 'gemini-1.5-pro': {'rpm': 2, 'rpd': 50},
+    'gemini-2.0-flash-lite': {'rpm': 10, 'rpd': 1000},
+    'gemini-2.0-flash': {'rpm': 10, 'rpd': 1000},
+    'default': {'rpm': 10, 'rpd': 1000},
+}
+
+
+def get_best_gemini_model(preferred_model=None):
     """
-    Forces the use of Flash models which have better free tier limits.
+    Select Gemini model. FORCES gemini-2.0-flash-lite for best free tier limits.
+    
+    Args:
+        preferred_model: User-specified model (overrides auto-selection)
+    
+    Returns:
+        Model name string
     """
     if not HAS_GEMINI:
         raise ImportError("google-generativeai is required.")
     
-    available_models = []
+    # If user specified a model, use it
+    if preferred_model:
+        print(f"[OK] Using specified model: {preferred_model}")
+        return preferred_model
+    
+    # FORCE gemini-2.0-flash-lite - it has the best free tier (10 RPM)
+    default_model = "gemini-2.0-flash-lite"
+    
+    # Verify it's available
     try:
+        available_models = []
         for m in genai.list_models():
             if "generateContent" in m.supported_generation_methods:
                 available_models.append(m.name)
-    except Exception as e:
-        print(f"Error listing models: {e}")
-        return "gemini-1.5-flash"
-    
-    priority = ['gemini-1.5-flash','gemini-2.0-flash-lite','gemini-2.5-flash-lite']
-    
-    for p in priority:
+        
+        # Check if our preferred model is available
         for m in available_models:
-            if p in m:
-                print(f"✓ Selected: {m} (Best for Free Tier)")
+            if default_model in m:
+                print(f"[OK] Selected: {m} (15 RPM - best free tier)")
                 return m
-                
-    return available_models[0]
+        
+        # Fallback if 1.5-flash not available
+        print(f"[WARNING] {default_model} not available, using first available model")
+        return available_models[0] if available_models else default_model
+        
+    except Exception as e:
+        print(f"[WARNING] Could not list models: {e}")
+        return default_model
 
 
-def clean_single_text_with_gemini(text, model, generation_config, max_retries=3, retry_delay=60):
+def clean_single_text_with_gemini(text, model, generation_config):
     """
-    PATCHED v2: Process ONE text at a time WITH RETRY LOGIC.
+    Process ONE text. NO RETRY - just mark errors for later retry.
     
     Args:
         text: Text to clean
         model: Gemini model instance
         generation_config: Generation config
-        max_retries: Number of retries on quota error (default: 3)
-        retry_delay: Seconds to wait before retry (default: 60)
     
     Returns:
         Cleaned text or error marker
@@ -467,117 +493,53 @@ TEXT TO CLEAN:
 
 CLEANED TEXT:"""
 
-    for attempt in range(max_retries + 1):
-        try:
-            response = model.generate_content(prompt, generation_config=generation_config)
-            cleaned = response.text.strip()
-            
-            # Remove potential quotes or markdown the model might add
-            if cleaned.startswith('"') and cleaned.endswith('"'):
-                cleaned = cleaned[1:-1]
-            if cleaned.startswith("```"):
-                lines = cleaned.split("\n")
-                cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-            
-            return cleaned
-            
-        except Exception as e:
-            error_str = str(e)
-            is_quota_error = "429" in error_str or "quota" in error_str.lower() or "resource" in error_str.lower()
-            
-            if is_quota_error and attempt < max_retries:
-                print(f"\n⏳ Quota exceeded. Waiting {retry_delay}s before retry {attempt + 1}/{max_retries}...")
-                time.sleep(retry_delay)
-                continue
-            elif is_quota_error:
-                print(f"\n Quota exceeded after {max_retries} retries. Skipping this text.")
-                return "[ERROR: Quota Exceeded - Max Retries]"
-            else:
-                return f"[ERROR: {type(e).__name__}]"
-    
-    return "[ERROR: Unknown]"
+    try:
+        response = model.generate_content(prompt, generation_config=generation_config)
+        cleaned = response.text.strip()
+        
+        # Remove potential quotes or markdown the model might add
+        if cleaned.startswith('"') and cleaned.endswith('"'):
+            cleaned = cleaned[1:-1]
+        if cleaned.startswith("```"):
+            lines = cleaned.split("\n")
+            cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+        
+        return cleaned
+        
+    except Exception as e:
+        error_str = str(e)
+        if "429" in error_str or "quota" in error_str.lower() or "resource" in error_str.lower():
+            return "[ERROR: Quota Exceeded]"
+        else:
+            return f"[ERROR: {type(e).__name__}]"
 
 
-def clean_batch_with_gemini(texts, model_name=None, delay_between_texts=2, max_retries=3, retry_delay=60):
-    """
-    PATCHED v2: Processes texts ONE BY ONE with RETRY LOGIC and RATE LIMITING.
-    
-    Args:
-        texts: List of texts to clean
-        model_name: Gemini model name (auto-detected if None)
-        delay_between_texts: Seconds to wait between each text (default: 2)
-        max_retries: Number of retries on quota error (default: 3)
-        retry_delay: Seconds to wait before retry (default: 60)
-    
-    Returns:
-        List of cleaned texts
-    """
-    if not HAS_GEMINI:
-        raise ImportError("google-generativeai is required.")
-    
-    if model_name is None:
-        model_name = get_best_gemini_model()
-    
-    model = genai.GenerativeModel(model_name)
-    
-    # PATCHED: Explicit generation config with high output token limit
-    generation_config = genai.types.GenerationConfig(
-        max_output_tokens=8192,  # Explicit high limit
-        temperature=0.1,         # Low for deterministic cleaning
-    )
-    
-    cleaned_texts = []
-    
-    for i, text in enumerate(texts):
-        if not isinstance(text, str) or not text.strip():
-            cleaned_texts.append("")
-            continue
-            
-        # Skip already-errored texts
-        if text.startswith("[SKIPPED") or text.startswith("[ERROR"):
-            cleaned_texts.append(text)
-            continue
-        
-        # Clean text with retry logic
-        cleaned = clean_single_text_with_gemini(
-            text, model, generation_config, 
-            max_retries=max_retries, 
-            retry_delay=retry_delay
-        )
-        
-        # PATCHED: Warn if output is suspiciously shorter than input
-        input_words = len(text.split())
-        output_words = len(cleaned.split())
-        retention = output_words / max(input_words, 1)
-        
-        if retention < 0.5 and not cleaned.startswith("[ERROR"):
-            print(f"\n Text {i}: Possible truncation ({output_words}/{input_words} words = {retention:.0%})")
-        
-        cleaned_texts.append(cleaned)
-        
-        # Rate limiting between texts
-        if delay_between_texts > 0 and i < len(texts) - 1:
-            time.sleep(delay_between_texts)
-    
-    return cleaned_texts
-
-
-def preflight_check_gemini(texts, delay_between_texts=2, max_retries=3, retry_delay=60):
+def preflight_check_gemini(texts, delay_between_texts=2, model_name=None):
     """
     Analyze texts BEFORE Gemini processing to warn about time and quota issues.
     
     Args:
         texts: List of text strings to analyze
         delay_between_texts: Seconds between API calls
-        max_retries: Max retries per text
-        retry_delay: Seconds to wait on retry
+        model_name: Model to use (for limit lookup)
     
     Returns:
         Dictionary with analysis results
     """
     print(f"\n{'='*80}")
-    print("📋 PRE-FLIGHT CHECK: Gemini API")
+    print("PRE-FLIGHT CHECK: Gemini API")
     print(f"{'='*80}\n")
+    
+    # Get model limits
+    model_key = 'gemini-2.0-flash-lite' if model_name is None else model_name
+    limits = GEMINI_MODEL_LIMITS.get(model_key, GEMINI_MODEL_LIMITS['default'])
+    for key in GEMINI_MODEL_LIMITS:
+        if key in str(model_key):
+            limits = GEMINI_MODEL_LIMITS[key]
+            break
+    
+    FREE_TIER_RPM = limits['rpm']
+    FREE_TIER_RPD = limits['rpd']
     
     # Calculate stats
     total_reports = len(texts)
@@ -592,20 +554,18 @@ def preflight_check_gemini(texts, delay_between_texts=2, max_retries=3, retry_de
     estimated_seconds = total_reports * time_per_text
     estimated_minutes = estimated_seconds / 60
     
-    # Quota estimates (free tier: ~15 requests/minute, ~1500/day)
-    FREE_TIER_RPM = 15  # requests per minute
-    FREE_TIER_RPD = 1500  # requests per day
+    # Calculate effective rate
+    effective_rpm = 60 / max(time_per_text, 1)
     
-    texts_before_quota_hit = FREE_TIER_RPM  # Will hit after ~15 texts at full speed
-    if delay_between_texts >= 4:
-        # With 4+ second delay, we're under 15 RPM
-        texts_before_quota_hit = total_reports  # Should complete without quota issues
-    
-    # Worst case: every text needs max retries
-    worst_case_seconds = total_reports * (time_per_text + (max_retries * retry_delay))
-    worst_case_minutes = worst_case_seconds / 60
+    # Check if safe
+    min_safe_delay = max(0, (60 / FREE_TIER_RPM) - base_time_per_text)
+    quota_safe = effective_rpm <= FREE_TIER_RPM * 0.9  # 10% margin
     
     # Print results
+    print(f"MODEL:")
+    print(f"  Selected model:        gemini-2.0-flash-lite (default)")
+    print(f"  Rate limit:            {FREE_TIER_RPM} requests/min, {FREE_TIER_RPD}/day")
+    print(f"")
     print(f"REPORT STATISTICS:")
     print(f"  Total reports:         {total_reports}")
     print(f"  Total characters:      {total_chars:,}")
@@ -614,51 +574,41 @@ def preflight_check_gemini(texts, delay_between_texts=2, max_retries=3, retry_de
     print(f"")
     print(f"API SETTINGS:")
     print(f"  Delay between calls:   {delay_between_texts}s")
-    print(f"  Max retries per text:  {max_retries}")
-    print(f"  Retry delay:           {retry_delay}s")
     print(f"")
     print(f"TIME ESTIMATES:")
-    print(f"  Best case:             ~{estimated_minutes:.1f} minutes")
-    print(f"  Worst case (retries):  ~{worst_case_minutes:.1f} minutes")
+    print(f"  Estimated time:        ~{estimated_minutes:.1f} minutes")
     print(f"")
     
     # Quota warnings
     print(f"{'='*80}")
-    print(f"QUOTA ANALYSIS (Free Tier):")
+    print(f"QUOTA ANALYSIS:")
     print(f"{'='*80}")
-    print(f"  Free tier limit:       ~{FREE_TIER_RPM} requests/minute")
-    print(f"  Your effective rate:   ~{60/max(time_per_text, 1):.1f} requests/minute")
+    print(f"  Model limit:           {FREE_TIER_RPM} requests/minute")
+    print(f"  Your effective rate:   ~{effective_rpm:.1f} requests/minute")
     print(f"")
     
-    if delay_between_texts < 4:
-        print(f"  ⚠️  WARNING: With {delay_between_texts}s delay, you may hit quota after ~{texts_before_quota_hit} texts")
+    if not quota_safe:
+        print(f"  WARNING: With {delay_between_texts}s delay, you may hit quota")
         print(f"")
         print(f"  RECOMMENDATIONS:")
-        print(f"    • Use --delay 5 or higher for free tier")
-        print(f"    • Or expect retries (script will wait {retry_delay}s and retry)")
-        quota_safe = False
+        print(f"    - Use --delay {int(min_safe_delay) + 3} or higher")
+        print(f"    - Errors will be marked and can be retried with --retry-failed")
     else:
-        print(f"  ✅ Your delay ({delay_between_texts}s) should avoid most quota issues")
-        quota_safe = True
+        print(f"  [OK] Your settings should avoid quota issues")
     
-    # Check for very long reports (might be slow)
-    very_long_threshold = 10000  # 10K chars
-    very_long_count = sum(1 for c in char_counts if c > very_long_threshold)
-    if very_long_count > 0:
+    # Daily limit check
+    if total_reports > FREE_TIER_RPD:
         print(f"")
-        print(f"  ℹ️  {very_long_count} reports are >10K chars (may take longer to process)")
+        print(f"  WARNING: {total_reports} reports exceeds daily limit ({FREE_TIER_RPD})")
     
     print(f"\n{'='*80}")
     
-    # Final recommendation
     if not quota_safe and total_reports > 20:
-        print(f"💡 SUGGESTION: Consider using --delay 5 to avoid quota errors")
-        print(f"   New estimated time: ~{total_reports * 7 / 60:.1f} minutes")
-    elif total_reports > 100:
-        print(f"💡 SUGGESTION: For {total_reports} reports, consider running overnight")
-        print(f"   Or use Llama locally (no API limits): --method llama")
+        safe_delay = int(min_safe_delay) + 3
+        print(f"SUGGESTION: Use --delay {safe_delay} to avoid quota errors")
+        print(f"   New estimated time: ~{total_reports * (safe_delay + 2) / 60:.1f} minutes")
     else:
-        print(f"✅ Ready to process {total_reports} reports!")
+        print(f"[OK] Ready to process {total_reports} reports!")
     
     print(f"{'='*80}\n")
     
@@ -667,18 +617,18 @@ def preflight_check_gemini(texts, delay_between_texts=2, max_retries=3, retry_de
         'max_chars': max_chars,
         'avg_chars': avg_chars,
         'estimated_minutes': estimated_minutes,
-        'worst_case_minutes': worst_case_minutes,
         'quota_safe': quota_safe,
-        'very_long_count': very_long_count
+        'model_rpm': FREE_TIER_RPM
     }
 
 
 def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_answer', 
                                batch_size=10, num_samples=None, max_text_length=None,
-                               log_errors=True, delay_between_texts=2, max_retries=3,
-                               retry_delay=60, retry_failed_only=False): 
+                               log_errors=True, delay_between_texts=2,
+                               retry_failed_only=False, model_name=None): 
     """
-    Preprocess texts using Gemini API with retry logic.
+    Preprocess texts using Gemini API.
+    NO RETRY during processing - errors are marked and can be retried later with --retry-failed.
     
     Args:
         csv_path: Input CSV path
@@ -689,9 +639,8 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
         max_text_length: Skip texts longer than this
         log_errors: Save error log
         delay_between_texts: Seconds between API calls (default: 2)
-        max_retries: Retries per text on quota error (default: 3)
-        retry_delay: Seconds to wait before retry (default: 60)
         retry_failed_only: If True and output exists, only reprocess failed rows
+        model_name: Specific model to use (default: gemini-2.0-flash-lite)
     """
     if not HAS_GEMINI: raise ImportError("google-generativeai required")
     if HAS_DOTENV: load_dotenv()
@@ -701,10 +650,13 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
     
     genai.configure(api_key=api_key)
     
-    print(f"\n{'='*80}\nGEMINI API PREPROCESSING (with retry logic)\n{'='*80}")
+    # Select model ONCE at the start
+    selected_model = get_best_gemini_model(model_name)
+    
+    print(f"\n{'='*80}\nGEMINI API PREPROCESSING\n{'='*80}")
     print(f"Input file: {os.path.basename(csv_path)}")
+    print(f"Model: {selected_model}")
     print(f"Delay between texts: {delay_between_texts}s")
-    print(f"Max retries per text: {max_retries} (wait {retry_delay}s each)")
     if max_text_length:
         print(f"Max text length: {max_text_length} characters")
     else:
@@ -714,7 +666,7 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
     # RETRY FAILED ONLY MODE
     # =========================================================================
     if retry_failed_only and os.path.exists(output_path):
-        print(f"\n🔄 RETRY MODE: Reprocessing only failed rows from existing output")
+        print(f"\nRETRY MODE: Reprocessing only failed rows from existing output")
         
         try:
             existing_df = pd.read_csv(output_path)
@@ -736,15 +688,14 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
                 failed_indices = existing_df[error_mask].index.tolist()
                 
                 if not failed_indices:
-                    print("✅ No failed rows found! Nothing to retry.")
+                    print("[OK] No failed rows found! Nothing to retry.")
                     return existing_df
                 
                 print(f"Found {len(failed_indices)} failed rows to retry")
                 print(f"Failed row indices: {failed_indices[:10]}{'...' if len(failed_indices) > 10 else ''}")
                 
-                # Get model
-                model_name = get_best_gemini_model()
-                model = genai.GenerativeModel(model_name)
+                # Setup model
+                model = genai.GenerativeModel(selected_model)
                 generation_config = genai.types.GenerationConfig(
                     max_output_tokens=8192,
                     temperature=0.1,
@@ -752,6 +703,7 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
                 
                 # Retry each failed row
                 success_count = 0
+                still_failed = 0
                 for i, idx in enumerate(tqdm(failed_indices, desc="Retrying failed rows")):
                     original_text = existing_df.loc[idx, text_column]
                     
@@ -759,8 +711,7 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
                         continue
                     
                     cleaned = clean_single_text_with_gemini(
-                        original_text, model, generation_config,
-                        max_retries=max_retries, retry_delay=retry_delay
+                        original_text, model, generation_config
                     )
                     
                     if not cleaned.startswith("[ERROR"):
@@ -768,6 +719,7 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
                         success_count += 1
                     else:
                         existing_df.loc[idx, target_col] = cleaned
+                        still_failed += 1
                     
                     # Rate limiting
                     if delay_between_texts > 0 and i < len(failed_indices) - 1:
@@ -779,6 +731,7 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
                 print(f"RETRY COMPLETE")
                 print(f"{'='*80}")
                 print(f"Successfully retried: {success_count}/{len(failed_indices)} rows")
+                print(f"Still failed: {still_failed} rows")
                 print(f"Output saved to: {output_path}")
                 return existing_df
 
@@ -795,22 +748,29 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
     
     texts = df_to_process[text_column].tolist()
     
-    # PATCHED: Run pre-flight check before processing
+    # Run pre-flight check before processing
     preflight_results = preflight_check_gemini(
         texts,
         delay_between_texts=delay_between_texts,
-        max_retries=max_retries,
-        retry_delay=retry_delay
+        model_name=selected_model
     )
     
     # Pause if quota issues expected
     if not preflight_results['quota_safe'] and len(texts) > 20:
-        print("⚠️  Quota issues likely. Processing will proceed in 5 seconds...")
-        print("   (Use Ctrl+C to cancel and restart with --delay 5)")
+        print("WARNING: Quota issues likely. Processing will proceed in 5 seconds...")
+        print("   (Errors will be marked - use --retry-failed later)")
         time.sleep(5)
     
     skipped_count = 0
+    error_count = 0
     error_log = []
+    
+    # Setup model
+    model = genai.GenerativeModel(selected_model)
+    generation_config = genai.types.GenerationConfig(
+        max_output_tokens=8192,
+        temperature=0.1,
+    )
     
     # Filter texts by length and log skipped ones
     filtered_texts = []
@@ -826,11 +786,11 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
     
     texts = filtered_texts
     
-    # PATCHED v2: Process texts with progress bar, rate limiting, and retry logic
+    # Process texts one by one
     all_cleaned = []
     
     print(f"\nProcessing {len(texts)} texts individually...")
-    print(f"⏱️  Estimated time: ~{preflight_results['estimated_minutes']:.1f} minutes")
+    print(f"Estimated time: ~{preflight_results['estimated_minutes']:.1f} minutes")
     
     for i, text in enumerate(tqdm(texts, desc="Gemini API")):
         # Skip already processed error markers from filtering
@@ -838,14 +798,22 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
             all_cleaned.append(text)
             continue
         
-        # Process single text with retry logic
-        result = clean_batch_with_gemini(
-            [text], 
-            delay_between_texts=0,  # Delay handled here, not inside
-            max_retries=max_retries,
-            retry_delay=retry_delay
-        )
-        all_cleaned.extend(result)
+        # Process single text (NO RETRY - just mark errors)
+        cleaned = clean_single_text_with_gemini(text, model, generation_config)
+        
+        if cleaned.startswith("[ERROR"):
+            error_count += 1
+            error_log.append(f"Report {i}: {cleaned}")
+        else:
+            # Warn if output is suspiciously shorter than input
+            input_words = len(text.split())
+            output_words = len(cleaned.split())
+            retention = output_words / max(input_words, 1)
+            
+            if retention < 0.5:
+                print(f"\n[WARNING] Text {i}: Possible truncation ({output_words}/{input_words} words = {retention:.0%})")
+        
+        all_cleaned.append(cleaned)
         
         # Rate limiting between texts
         if delay_between_texts > 0 and i < len(texts) - 1:
@@ -861,25 +829,43 @@ def preprocess_with_gemini_api(csv_path, output_path, text_column='reflection_an
             f.write(f"Preprocessing Error Log\n")
             f.write(f"{'='*80}\n")
             f.write(f"Dataset: {os.path.basename(csv_path)}\n")
-            f.write(f"Method: Gemini API\n")
+            f.write(f"Method: Gemini API ({selected_model})\n")
             if max_text_length:
                 f.write(f"Max text length: {max_text_length} chars\n")
             else:
                 f.write(f"Max text length: No limit\n")
             f.write(f"Total reports: {len(texts)}\n")
             f.write(f"Skipped (too long): {skipped_count}\n")
-            f.write(f"Successfully processed: {len(texts) - skipped_count}\n")
+            f.write(f"Errors (quota/other): {error_count}\n")
+            f.write(f"Successfully processed: {len(texts) - skipped_count - error_count}\n")
             f.write(f"{'='*80}\n\n")
             f.write(f"DETAILS:\n")
             for err in error_log:
                 f.write(f"{err}\n")
-        print(f"\n⚠ Error log saved to: {log_path}")
+            f.write(f"\nTo retry failed rows, run:\n")
+            f.write(f"python preprocessing.py --dataset DATASET --method gemini --retry-failed\n")
+        print(f"\nError log saved to: {log_path}")
     
-    print(f"Saved to: {output_path}")
+    # Print summary
+    print(f"\n{'='*80}")
+    print(f"SUMMARY")
+    print(f"{'='*80}")
+    print(f"Total reports: {len(texts)}")
+    print(f"Successfully processed: {len(texts) - skipped_count - error_count}")
+    print(f"Errors: {error_count}")
+    print(f"Skipped (too long): {skipped_count}")
+    print(f"Output saved to: {output_path}")
+    
+    if error_count > 0:
+        print(f"\nTo retry failed rows:")
+        print(f"python preprocessing.py --dataset YOUR_DATASET --method gemini --retry-failed --delay 5")
+    
+    print(f"{'='*80}\n")
+    
     return df_to_process
 
 # =============================================================================
-# SECTION 4: UTILITY FUNCTIONS (RESTORED)
+# SECTION 4: UTILITY FUNCTIONS
 # =============================================================================
 
 def load_data(csv_path, text_column='reflection_answer', remove_na=True):
@@ -1016,30 +1002,28 @@ Examples:
   # Llama preprocessing (deterministic, no cropping)
   python preprocessing.py --dataset MPE --method llama --sample 5
   
-  # Gemini API preprocessing (with retry logic)
+  # Gemini API preprocessing (uses gemini-2.0-flash-lite by default)
   python preprocessing.py --dataset innerspeech --method gemini
   
-  # Gemini with slower rate limiting (for free tier)
+  # Gemini with slower rate limiting (recommended for free tier)
   python preprocessing.py --dataset innerspeech --method gemini --delay 5
   
-  # RETRY FAILED ROWS ONLY (reprocess errors from previous run)
+  # RETRY FAILED ROWS ONLY (after first run completes)
   python preprocessing.py --dataset ganzfeld_GREEN --method gemini --retry-failed
-  
-  # Retry with longer wait time
-  python preprocessing.py --dataset ganzfeld_GREEN --method gemini --retry-failed --retry-delay 120
   
   # PRE-FLIGHT CHECK: Analyze reports before processing (no processing)
   python preprocessing.py --dataset dreamachine_DL --preflight
-  python preprocessing.py --dataset dreamachine_DL --preflight --method gemini --delay 5
+  python preprocessing.py --dataset dreamachine_DL --preflight --method gemini
   
   # With optional length limit (skip reports > 10000 chars)
   python preprocessing.py --dataset dreamachine_DL --method llama --max-text-length 10000
   
-  # Without error logging
-  python preprocessing.py --dataset dreamachine_DL --method llama --no-error-log
-  
   # List available datasets
   python preprocessing.py --list-datasets
+
+Available Gemini models (free tier):
+  gemini-2.0-flash      10 RPM, 1000/day
+  gemini-2.0-flash-lite 10 RPM, 1000/day
         """
     )
     
@@ -1082,12 +1066,6 @@ Examples:
         help="Context window size for Llama (default: 16384)"
     )
     parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=10,
-        help="(DEPRECATED) Batch size for Gemini API - now processes one at a time"
-    )
-    parser.add_argument(
         "--max-text-length",
         type=int,
         default=None,
@@ -1103,7 +1081,6 @@ Examples:
         action="store_true",
         help="List available datasets and exit"
     )
-    # NEW: Retry and rate limiting options
     parser.add_argument(
         "--delay",
         type=int,
@@ -1111,21 +1088,15 @@ Examples:
         help="Seconds to wait between API calls (default: 2, use 5+ for free tier)"
     )
     parser.add_argument(
-        "--max-retries",
-        type=int,
-        default=3,
-        help="Max retries per text on quota error (default: 3)"
-    )
-    parser.add_argument(
-        "--retry-delay",
-        type=int,
-        default=60,
-        help="Seconds to wait before retry on quota error (default: 60)"
-    )
-    parser.add_argument(
         "--retry-failed",
         action="store_true",
         help="Only reprocess failed rows from existing output file"
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Gemini model to use (default: gemini-2.0-flash-lite)"
     )
     
     args = parser.parse_args()
@@ -1138,7 +1109,7 @@ Examples:
             print("AVAILABLE DATASETS")
             print("="*80)
             for name in sorted(config.keys()):
-                print(f"  • {name}")
+                print(f"  - {name}")
             print("="*80 + "\n")
         except Exception as e:
             print(f"Error: {e}")
@@ -1169,7 +1140,8 @@ Examples:
         print("="*80)
         print(f"Dataset:        {args.dataset}")
         print(f"Input:          {input_path}")
-        print(f"Context window: {args.n_ctx} tokens")
+        if args.method == "llama":
+            print(f"Context window: {args.n_ctx} tokens")
         print("="*80)
         
         try:
@@ -1183,8 +1155,7 @@ Examples:
                     preflight_check_gemini(
                         df[args.text_column].tolist(),
                         delay_between_texts=args.delay,
-                        max_retries=args.max_retries,
-                        retry_delay=args.retry_delay
+                        model_name=args.model
                     )
                 else:
                     # Default to Llama preflight (also useful for basic)
@@ -1216,7 +1187,6 @@ Examples:
     print(f"Error logging:  {'Enabled' if not args.no_error_log else 'Disabled'}")
     if args.method == "gemini":
         print(f"API delay:      {args.delay}s between texts")
-        print(f"Max retries:    {args.max_retries} (wait {args.retry_delay}s each)")
         print(f"Retry failed:   {'YES - only reprocessing errors' if args.retry_failed else 'No - full processing'}")
     if args.method == "llama":
         print(f"Context window: {args.n_ctx} tokens")
@@ -1232,7 +1202,7 @@ Examples:
                     print(f"\nRunning on {len(df)} reports (test mode)")
                 result = basic_preprocess(df[args.text_column].tolist())
                 result.to_csv(output_path, index=False)
-                print(f"\n✓ Preprocessing complete!")
+                print(f"\n[OK] Preprocessing complete!")
                 print(f"Output saved to: {output_path}")
         
         elif args.method == "llama":
@@ -1247,54 +1217,40 @@ Examples:
                 n_ctx=args.n_ctx
             )
             if result is not None:
-                print(f"\n✓ Preprocessing complete!")
+                print(f"\n[OK] Preprocessing complete!")
         
         elif args.method == "gemini":
             if args.retry_failed:
-                print(f"\n🔄 Running Gemini API preprocessing (RETRY FAILED ONLY)...")
+                print(f"\nRETRY MODE: Reprocessing only failed rows...")
             else:
-                print(f"\nRunning Gemini API preprocessing (with retry logic)...")
+                print(f"\nRunning Gemini API preprocessing...")
             result = preprocess_with_gemini_api(
                 input_path,
                 output_path,
                 text_column=args.text_column,
-                batch_size=args.batch_size,
                 num_samples=args.sample,
                 max_text_length=args.max_text_length,
                 log_errors=not args.no_error_log,
                 delay_between_texts=args.delay,
-                max_retries=args.max_retries,
-                retry_delay=args.retry_delay,
-                retry_failed_only=args.retry_failed
+                retry_failed_only=args.retry_failed,
+                model_name=args.model
             )
             if result is not None:
-                print(f"\n✓ Preprocessing complete!")
+                print(f"\n[OK] Preprocessing complete!")
     
     except Exception as e:
-        print(f"\n✗ Error during preprocessing: {e}")
+        print(f"\n[ERROR] Error during preprocessing: {e}")
         import traceback
         traceback.print_exc()
         exit(1)
 
 
 
-#to check if data ok to run (not too long):
-# python src/mosaic/preprocessing/preprocessing.py --dataset dreamachine_DL --preflight
-
-#python src/mosaic/preprocessing/preprocessing.py --dataset dreamachine_DL --preflight --method gemini --delay 2
-
-
-# # List datasets
-# python src/mosaic/preprocessing/preprocessing.py --list-datasets
-
-# # Test Llama with 5 reports
-# python src/mosaic/preprocessing/preprocessing.py --dataset dreamachine_DL --method llama --sample 5
-
-# # Full run
+#example usage:
+# # Process (errors will be marked, not retried)
 # python src/mosaic/preprocessing/preprocessing.py --dataset ganzfeld_GREEN --method gemini
+# python src/mosaic/preprocessing/preprocessing.py --dataset ganzfeld_RED --method llama --sample 5
 
-# # With optional length limit
-# python src/mosaic/preprocessing/preprocessing.py --dataset dreamachine_DL --method llama --max-text-length 10000
-
-# # Without error log
-# python src/mosaic/preprocessing/preprocessing.py --dataset dreamachine_DL --method llama --no-error-log
+# # After it finishes, retry any failed rows
+# python src/mosaic/preprocessing/preprocessing.py --dataset ganzfeld_GREEN --method gemini --retry-failed --delay 7
+# ``

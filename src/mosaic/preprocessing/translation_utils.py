@@ -1433,3 +1433,9 @@ if __name__ == "__main__":
 
 # # Preview PII anonymization
 # python translation_utils.py anonymise-preview --input-csv filename.csv --num-samples 10
+
+
+
+# python translation_utils.py compare --input-csv ganzfeld_GREEN_cleaned_llama_sample5.csv
+
+# python src/mosaic/preprocessing/translation_utils.py diagnostic --input-csv ganzfeld_GREEN_cleaned_llama.csv
