@@ -356,7 +356,7 @@ Clean the following text:
             if retention < 0.5:
                 warning_msg = f"Report {idx}: Possible truncation ({output_words}/{input_words} words = {retention:.0%})"
                 error_log.append(warning_msg)
-                print(f"\n⚠️  {warning_msg}")
+                print(f"\n {warning_msg}")
             
             cleaned_texts.append(final_text)
             
@@ -424,9 +424,9 @@ def get_best_gemini_model():
                 available_models.append(m.name)
     except Exception as e:
         print(f"Error listing models: {e}")
-        return "gemini-2.5-flash-lite"
+        return "gemini-1.5-flash"
     
-    priority = ['gemini-2.5-flash-lite','gemini-2.0-flash-lite','gemini-1.5-flash']
+    priority = ['gemini-1.5-flash','gemini-2.0-flash-lite','gemini-2.5-flash-lite']
     
     for p in priority:
         for m in available_models:
@@ -490,7 +490,7 @@ CLEANED TEXT:"""
                 time.sleep(retry_delay)
                 continue
             elif is_quota_error:
-                print(f"\n❌ Quota exceeded after {max_retries} retries. Skipping this text.")
+                print(f"\n Quota exceeded after {max_retries} retries. Skipping this text.")
                 return "[ERROR: Quota Exceeded - Max Retries]"
             else:
                 return f"[ERROR: {type(e).__name__}]"
@@ -551,7 +551,7 @@ def clean_batch_with_gemini(texts, model_name=None, delay_between_texts=2, max_r
         retention = output_words / max(input_words, 1)
         
         if retention < 0.5 and not cleaned.startswith("[ERROR"):
-            print(f"\n⚠️  Text {i}: Possible truncation ({output_words}/{input_words} words = {retention:.0%})")
+            print(f"\n Text {i}: Possible truncation ({output_words}/{input_words} words = {retention:.0%})")
         
         cleaned_texts.append(cleaned)
         
@@ -1277,6 +1277,11 @@ Examples:
         exit(1)
 
 
+
+#to check if data ok to run (not too long):
+# python src/mosaic/preprocessing/preprocessing.py --dataset dreamachine_DL --preflight
+
+#python src/mosaic/preprocessing/preprocessing.py --dataset dreamachine_DL --preflight --method gemini --delay 2
 
 
 # # List datasets
