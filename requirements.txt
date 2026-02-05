@@ -21,7 +21,7 @@ llama-cpp-python
 
 # Dimensionality reduction and clustering
 # Core components for BERTopic's backend
-umap
+umap-learn
 hdbscan
 
 # Visualisation and notebooks
