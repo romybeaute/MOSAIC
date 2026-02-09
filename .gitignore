@@ -32,7 +32,7 @@ MOSAIC.egg-info/
 # #ignore the content of DATA directory, but not the directory itself
 # /DATA/*
 # !/DATA/.gitkeep
-# .DS_Store
+.DS_Store
 
 
 .env
