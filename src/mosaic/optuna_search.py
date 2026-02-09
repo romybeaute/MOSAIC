@@ -191,27 +191,102 @@ class OptunaSearchBERTopic:
         self.data_path = str(data_file)
         print(f"✓ Using data file: {self.data_path}")
 
-        # 2. Results Path (Save relative to the found DATA root's parent, i.e., project root)
-        # If we found data at MOSAIC/DATA, we want results at MOSAIC/results/optuna
+        # 2. Results Path
         project_root = Path(data_file).parent.parent 
-        if "preprocessed" in str(Path(data_file).parent): # Handle preprocessed subfolder
+        if "preprocessed" in str(Path(data_file).parent): 
              project_root = project_root.parent
 
         sanitized_model = self.transformer_model_name.replace('/', '_')
         
-        # Fallback if project root calculation is weird, use current script relative path
         if not project_root.exists():
-            project_root = Path("results/optuna")
+            project_root = Path("RESULTS/optuna")
         else:
-            project_root = project_root / "results/optuna"
+            project_root = project_root / "RESULTS/optuna"
             
         results_dir = project_root / self.dataset
         results_dir.mkdir(parents=True, exist_ok=True)
         
-        self.results_path = str(results_dir / f"OPTUNA_{self.condition}_{sanitized_model}_results.csv")
-        self.study_db_path = str(results_dir / f"OPTUNA_{self.condition}_{sanitized_model}.db")
+        # --- FILENAME LOGIC FIXED HERE ---
+        # Only include condition if it exists
+        if self.condition:
+            base_name = f"OPTUNA_{self.condition}_{sanitized_model}"
+        else:
+            base_name = f"OPTUNA_{sanitized_model}"
+            
+        self.results_path = str(results_dir / f"{base_name}_results.csv")
+        self.study_db_path = str(results_dir / f"{base_name}.db")
         
         print(f"✓ Results will be saved to: {self.results_path}")
+
+    # def setup_paths(self):
+    #     # 1. Data Path
+    #     # robustly find the project root by looking 3 levels up
+    #     current_dir = Path(__file__).resolve().parent
+    #     possible_roots = [
+    #         current_dir / "DATA",                   # Same dir
+    #         current_dir.parent / "DATA",            # src/DATA
+    #         current_dir.parent.parent / "DATA",     # MOSAIC/DATA (Likely correct)
+    #         current_dir.parent.parent.parent / "DATA" 
+    #     ]
+        
+    #     data_file = None
+        
+    #     # Scan all possible DATA locations
+    #     for root in possible_roots:
+    #         if not root.exists():
+    #             continue
+                
+    #         # Check root/{dataset} folder
+    #         if (root / self.dataset).exists():
+    #             found = self._find_preprocessed_file(root / self.dataset)
+    #             if found:
+    #                 data_file = found
+    #                 print(f"  (Found data in: {root / self.dataset})")
+    #                 break
+                    
+    #         # Check root/preprocessed folder
+    #         if (root / "preprocessed").exists():
+    #             found = self._find_preprocessed_file(root / "preprocessed")
+    #             if found:
+    #                 data_file = found
+    #                 print(f"  (Found data in: {root / 'preprocessed'})")
+    #                 break
+            
+    #         # Check root directly
+    #         found = self._find_preprocessed_file(root)
+    #         if found:
+    #             data_file = found
+    #             break
+
+    #     if not data_file:
+    #         # Print where we looked to help debug
+    #         checked = [str(p) for p in possible_roots]
+    #         raise FileNotFoundError(f"Could not find data for '{self.dataset}'. \nChecked in: {checked}")
+            
+    #     self.data_path = str(data_file)
+    #     print(f"✓ Using data file: {self.data_path}")
+
+    #     # 2. Results Path (Save relative to the found DATA root's parent, i.e., project root)
+    #     # If we found data at MOSAIC/DATA, we want results at MOSAIC/results/optuna
+    #     project_root = Path(data_file).parent.parent 
+    #     if "preprocessed" in str(Path(data_file).parent): # Handle preprocessed subfolder
+    #          project_root = project_root.parent
+
+    #     sanitized_model = self.transformer_model_name.replace('/', '_')
+        
+    #     # Fallback if project root calculation is weird, use current script relative path
+    #     if not project_root.exists():
+    #         project_root = Path("results/optuna")
+    #     else:
+    #         project_root = project_root / "results/optuna"
+            
+    #     results_dir = project_root / self.dataset
+    #     results_dir.mkdir(parents=True, exist_ok=True)
+        
+    #     self.results_path = str(results_dir / f"OPTUNA_{self.condition}_{sanitized_model}_results.csv")
+    #     self.study_db_path = str(results_dir / f"OPTUNA_{self.condition}_{sanitized_model}.db")
+        
+    #     print(f"Results will be saved to: {self.results_path}")
 
     def setup_models(self):
         self.embedding_model = SentenceTransformer(self.transformer_model_name)
@@ -227,7 +302,7 @@ class OptunaSearchBERTopic:
         df = pd.read_csv(self.data_path)
         # Try to find the text column intelligently
         cols = df.columns
-        text_col = next((c for c in ['cleaned_reflection', 'reflection_answer', 'text'] if c in cols), None)
+        text_col = next((c for c in ['cleaned_reflection', 'reflection_answer', 'text','cleaned_text'] if c in cols), None)
         
         if not text_col:
             raise ValueError(f"Could not find text column in {cols}")
@@ -247,62 +322,75 @@ class OptunaSearchBERTopic:
     def initialize_results_file(self):
         if not os.path.exists(self.results_path):
             pd.DataFrame(columns=[
-                'trial_number', 'objective_embed_coherence', 'objective_cv',
+                'trial_number', 'embedding_coherence', 'objective_cv',
                 'n_components', 'n_neighbors', 'min_dist', 'min_cluster_size', 'min_samples',
                 'embedding_coherence_attr', 'coherence_score_cv_attr', 'n_topics'
             ]).to_csv(self.results_path, index=False)
 
+
     def _define_search_space(self, trial):
         """
+        Defines the search space for Optuna.
         Priority:
-        1. Config 'search_space' (if exists)
-        2. Config 'get_default_params(condition)' (if exists - fixed point, not range, treated as narrow range)
-        3. Hardcoded defaults based on Condition (DL vs HS)
+        1. Config file 'search_space' (if defined in src/mosaic/configs/dataset.py)
+        2. Smart Defaults based on dataset size (if no config is found)
         """
         
-        # 1. Try Config Search Space
+        # --- STRATEGY 1: LOAD FROM CONFIG (Preferred) ---
         if self.config and hasattr(self.config, 'search_space') and self.config.search_space:
+            print("  - Using search space defined from config.")
             s = self.config.search_space
-            # Helper to check if it's a range tuple or single value
+            
+            # Helper: Validates if value is a list/tuple [low, high] or a single value
             def get_range(key, default_low, default_high):
                 val = s.get(key)
-                if isinstance(val, (tuple, list)): return val[0], val[1]
+                if isinstance(val, (tuple, list)) and len(val) == 2: 
+                    return val[0], val[1]
                 return default_low, default_high
 
             return {
-                'n_components': trial.suggest_int('n_components', *get_range('n_components', 5, 20)),
-                'n_neighbors': trial.suggest_int('n_neighbors', *get_range('n_neighbors', 10, 35)),
-                'min_dist': trial.suggest_float('min_dist', *get_range('min_dist', 0.0, 0.1), step=0.005),
+                'n_components': trial.suggest_int('n_components', *get_range('n_components', 2, 20)),
+                'n_neighbors': trial.suggest_int('n_neighbors', *get_range('n_neighbors', 10, 40)),
+                'min_dist': trial.suggest_float('min_dist', *get_range('min_dist', 0.0, 0.1), step=0.01),
                 'min_cluster_size': trial.suggest_int('min_cluster_size', *get_range('min_cluster_size', 10, 50)),
-                'min_samples': trial.suggest_int('min_samples', *get_range('min_samples', 5, 20)),
+                'min_samples': trial.suggest_int('min_samples', *get_range('min_samples', 5, 50)),
             }
 
-        # 2. Hardcoded Defaults based on Condition (Fallback)
-        # This matches your Dreamachine requirements
-        if self.condition == 'DL':
+        # --- STRATEGY 2: SMART DEFAULTS (Fallback) ---
+        # Adapts ranges based on how many rows of data you have.
+        n_rows = len(self.data)
+        print(f"  - Defining search space based on dataset size: {n_rows} rows.")
+        
+        # A. SMALL DATASETS (< 1,000 rows)
+        # Risk: Fragmentation. We need smaller cluster sizes to find anything.
+        if n_rows < 1000:
             return {
-                'n_components': trial.suggest_int('n_components', 5, 15),
-                'n_neighbors': trial.suggest_int('n_neighbors', 5, 15),
-                'min_dist': trial.suggest_float('min_dist', 0.0, 0.05, step=0.005),
-                'min_cluster_size': trial.suggest_int('min_cluster_size', 7, 10),
-                'min_samples': trial.suggest_int('min_samples', 5, 10),
+                'n_components': trial.suggest_int('n_components', 2, 10),    # Keep low dimension
+                'n_neighbors': trial.suggest_int('n_neighbors', 5, 20),     # Look locally
+                'min_dist': trial.suggest_float('min_dist', 0.0, 0.1, step=0.01),
+                'min_cluster_size': trial.suggest_int('min_cluster_size', 5, 20), # Allow tiny topics
+                'min_samples': trial.suggest_int('min_samples', 2, 20),      # Don't drop too many points
             }
-        elif self.condition == 'HS':
+            
+        # B. MEDIUM DATASETS (1,000 - 5,000 rows)
+        elif n_rows < 5000:
             return {
-                'n_components': trial.suggest_int('n_components', 5, 20),
-                'n_neighbors': trial.suggest_int('n_neighbors', 5, 25),
-                'min_dist': trial.suggest_float('min_dist', 0.0, 0.05, step=0.005),
-                'min_cluster_size': trial.suggest_int('min_cluster_size', 8, 20),
-                'min_samples': trial.suggest_int('min_samples', 5, 15),
+                'n_components': trial.suggest_int('n_components', 2, 20),
+                'n_neighbors': trial.suggest_int('n_neighbors', 10, 30),
+                'min_dist': trial.suggest_float('min_dist', 0.0, 0.1, step=0.01),
+                'min_cluster_size': trial.suggest_int('min_cluster_size', 10, 40),
+                'min_samples': trial.suggest_int('min_samples', 5, 40),
             }
+
+        # C. LARGE DATASETS (> 5,000 rows) (e.g., 10k sentences)
+        # Risk: Noise. We need larger clusters to ensure topics are real.
         else:
-            # Generic
             return {
-                'n_components': trial.suggest_int('n_components', 5, 30),
-                'n_neighbors': trial.suggest_int('n_neighbors', 10, 40),
-                'min_dist': trial.suggest_float('min_dist', 0.0, 0.1, step=0.005),
-                'min_cluster_size': trial.suggest_int('min_cluster_size', 10, 50),
-                'min_samples': trial.suggest_int('min_samples', 5, 25),
+                'n_components': trial.suggest_int('n_components', 2, 20),   # Low dim is better for short text
+                'n_neighbors': trial.suggest_int('n_neighbors', 15, 50),    # Look globally
+                'min_dist': trial.suggest_float('min_dist', 0.0, 0.05, step=0.01), # Pack tight
+                'min_cluster_size': trial.suggest_int('min_cluster_size', 25, 100), # Ignore tiny noise clusters
+                'min_samples': trial.suggest_int('min_samples', 5, 100),
             }
 
     def objective(self, trial):
@@ -392,8 +480,8 @@ class OptunaSearchBERTopic:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='dreamachine')
-    parser.add_argument('--condition', type=str, default='DL', help='Sub-condition (DL, HS)')
-    parser.add_argument('--use-config', action='store_true', default=True, help='Use mosaic.configs')
+    parser.add_argument('--condition', type=str, default=None, help='Sub-condition')
+    parser.add_argument('--use-config', action='store_true', default=False, help='Use mosaic.configs')
     parser.add_argument('--sentences', action='store_true', help='Split sentences')
     parser.add_argument('--n_trials', type=int, default=100)
     args = parser.parse_args()

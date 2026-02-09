@@ -23,6 +23,9 @@ from pathlib import Path
 from nltk.tokenize import PunktSentenceTokenizer
 import re
 
+import string
+import importlib
+
 # Optional imports
 try:
     from llama_cpp import Llama
@@ -49,6 +52,31 @@ except ImportError:
     HAS_DOTENV = False
 
 
+# ==============================================================================
+# SECTION 0: CONFIGURATION & UTILS
+# ==============================================================================
+
+def load_dataset_config(dataset_name):
+    """Dynamically load config for the specific dataset."""
+    try:
+        module_name = f"mosaic.configs.{dataset_name}"
+        config_module = importlib.import_module(module_name)
+        print(f"Loaded configuration for '{dataset_name}'")
+        return config_module.config
+    except ImportError:
+        print(f"No specific config found for '{dataset_name}'. Using defaults.")
+        return None
+
+def count_meaningful_words(text):
+    """Counts words excluding punctuation."""
+    # Remove punctuation map
+    translator = str.maketrans('', '', string.punctuation)
+    clean_text = text.translate(translator)
+    # Split by whitespace and count
+    return len(clean_text.split())
+
+
+
 # =============================================================================
 # SECTION 1: BASIC TEXT PREPROCESSING (Structure)
 # =============================================================================
@@ -66,38 +94,88 @@ def split_sentences(reflections):
     return sentences, doc_map
 
 
-def basic_preprocess(texts, split_into_sentences=True, min_words=2):
-    if split_into_sentences:
-        texts, doc_map = split_sentences(texts)
-
+def basic_preprocess(ids, texts, dataset_name=None, split_override=None):
+    # 1. Load Config
+    config = load_dataset_config(dataset_name)
     
-    initial_count = len(texts)
-    print(f"\nSuccessfully loaded {initial_count} texts.")
-
-    texts = [re.sub(r'^\s*\d+[\.\)]\s*', '', text) for text in texts] #clean numbering
+    # Defaults if config is missing
+    words_to_remove = getattr(config, 'words_to_remove', [])
+    patterns_to_remove = getattr(config, 'patterns_to_remove', [])
+    min_words = getattr(config, 'min_word_count', 3)
     
+    # LOGIC FIX: Prioritize CLI override, fall back to config, fall back to True
+    config_split = getattr(config, 'split_sentences', True)
+    if split_override is not None:
+        do_split = split_override
+    else:
+        do_split = config_split
 
-    filtered_texts = []
-    for text in texts:
-        if len(text.split()) >= min_words:
-            filtered_texts.append(text)
+    print(f"\nPreprocessing {len(texts)} texts...")
+    print(f"Rules: Split={do_split}, Min Words={min_words}")
+    print(f"Removing words: {words_to_remove}")
 
-    # Calculate removed stats
-    removed_count = initial_count - len(filtered_texts)
-    print(f"Threshold (min_words): {min_words}")
-    print(f"Removed short texts:   {removed_count} ({(removed_count/initial_count)*100:.1f}%)")
+    cleaned_ids = []
+    cleaned_texts = []
     
-    # Deduplicate while preserving order
-    seen = set()
-    final_texts = [x for x in filtered_texts if not (x in seen or seen.add(x))]
+    # --- PHASE 1: ARTIFACT CLEANING (Paragraph Level) ---
+    for pid, text in zip(ids, texts):
+        if not isinstance(text, str): continue
 
-    duplicates_count = len(filtered_texts) - len(final_texts)
-    print(f"Removed duplicates:    {duplicates_count}")
-    print(f"Final count:           {len(final_texts)}")
+        # A. Remove Bracketed Content [] and **
+        for pattern in patterns_to_remove:
+            text = re.sub(pattern, ' ', text)
 
+        # B. Remove Specific Words (Case Insensitive)
+        # We use \b boundary to ensure we don't cut words in half
+        for word in words_to_remove:
+            pattern = re.compile(rf'\b{re.escape(word)}\b', re.IGNORECASE)
+            text = pattern.sub(' ', text)
+
+        # C. General cleanup
+        text = text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        if text:
+            cleaned_ids.append(pid)
+            cleaned_texts.append(text)
+
+    # --- PHASE 2: SENTENCE SPLITTING ---
+    final_ids = []
+    final_texts = []
+
+    if do_split:
+        print("Splitting into sentences...")
+        tokenizer = PunktSentenceTokenizer()
+        for pid, text in zip(cleaned_ids, cleaned_texts):
+            sentences = tokenizer.tokenize(text)
+            final_ids.extend([pid] * len(sentences))
+            final_texts.extend(sentences)
+    else:
+        final_ids = cleaned_ids
+        final_texts = cleaned_texts
+
+    # --- PHASE 3: STRICT FILTERING ---
+    output_ids = []
+    output_texts = []
+    removed_count = 0
+    
+    for pid, text in zip(final_ids, final_texts):
+        # Count words ignoring punctuation
+        n_words = count_meaningful_words(text)
+        
+        if n_words >= min_words:
+            output_ids.append(pid)
+            output_texts.append(text)
+        else:
+            # print(f"Removed (too short): '{text}'") # Uncomment to debug
+            removed_count += 1
+
+    print(f"Removed short texts (< {min_words} words): {removed_count}")
+    print(f"Final count: {len(output_texts)}")
     
     return pd.DataFrame({
-        'sentences': final_texts
+        'participant_id': output_ids,
+        'cleaned_text': output_texts
     })
 
 
@@ -1033,6 +1111,12 @@ Available Gemini models (free tier):
         help="Dataset name (e.g., dreamachine_DL, MPE, innerspeech)"
     )
     parser.add_argument(
+        "--no-split",
+        action="store_true",
+        help="Disable sentence splitting (keep full paragraphs)"
+    )
+
+    parser.add_argument(
         "--method",
         choices=["basic", "llama", "gemini"],
         default="basic",
@@ -1200,7 +1284,21 @@ Available Gemini models (free tier):
                 if args.sample:
                     df = df.head(args.sample)
                     print(f"\nRunning on {len(df)} reports (test mode)")
-                result = basic_preprocess(df[args.text_column].tolist())
+                
+                # Check for participant_id
+                if 'participant_id' not in df.columns:
+                    print("Warning: 'participant_id' column not found. Creating dummy IDs.")
+                    df['participant_id'] = range(len(df))
+                
+                # CALL THE FUNCTION WITHOUT MANUAL OVERRIDES
+                # The function will now look up args.dataset in your config file
+                result = basic_preprocess(
+                    ids=df['participant_id'].tolist(),
+                    texts=df[args.text_column].tolist(),
+                    dataset_name=args.dataset,
+                    split_override=(not args.no_split) 
+                )
+                
                 result.to_csv(output_path, index=False)
                 print(f"\n[OK] Preprocessing complete!")
                 print(f"Output saved to: {output_path}")
@@ -1254,3 +1352,5 @@ Available Gemini models (free tier):
 # # After it finishes, retry any failed rows
 # python src/mosaic/preprocessing/preprocessing.py --dataset ganzfeld_GREEN --method gemini --retry-failed --delay 7
 # ``
+
+# python preprocessing.py --dataset 5MeO_naturalistic --method basic --no-split

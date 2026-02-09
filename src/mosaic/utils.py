@@ -12,6 +12,7 @@
 import pandas as pd
 import json
 import pickle
+import matplotlib.pyplot as plt
 
 
 def load_data_file(raw_file):
@@ -201,3 +202,43 @@ def get_params_grid(dataset_config, condition,reduced=False): #reduced set to tr
     print("Total number of combinations:", len(umap_combinations)*len(hdbscan_combinations)) 
     return umap_combinations, hdbscan_combinations
 
+
+
+
+#Get PARETO FRONT for hyperparameter tuning results (from optuna results)
+def get_pareto_front(df, col1, col2):
+    """
+    Identifies the rows that are on the Pareto front (non-dominated)
+    we want to MAXIMISE both columns.
+    """
+    population = df[[col1, col2]].values
+    is_pareto = np.ones(population.shape[0], dtype=bool)
+    
+    for i, c in enumerate(population):
+        if is_pareto[i]:
+            # Check if current point 'c' is dominated by any other point 'population[j]'
+            # Dominated means: other point is >= in all objectives AND > in at least one
+            lower_or_equal = np.all(population >= c, axis=1)
+            strictly_greater = np.any(population > c, axis=1)
+            
+            if np.any(lower_or_equal & strictly_greater):
+                is_pareto[i] = False
+
+        pareto_solution = df[is_pareto].sort_values(by=col1)
+    print(f"Found {len(pareto_solution)} solutions on the Pareto Front:\n")
+    print(pareto_solution[['trial_number', 'embedding_coherence', 'objective_cv', 'n_topics']].to_string(index=False))
+
+    plt.figure(figsize=(10, 6))
+    plt.scatter(df['embedding_coherence'], df['objective_cv'], c='gray', alpha=0.4, label='All Trials')
+    plt.scatter(pareto_solution['embedding_coherence'], pareto_solution['objective_cv'], c='red', s=50, label='Pareto Front')
+    plt.plot(pareto_solution['embedding_coherence'], pareto_solution['objective_cv'], c='red', linestyle='--', alpha=0.5)
+
+    plt.xlabel('Embedding Coherence')
+    plt.ylabel('CV Score')
+    plt.title('Pareto Front: Coherence vs CV')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.show()
+
+    
+    return pareto_solution
