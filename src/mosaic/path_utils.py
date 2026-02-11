@@ -37,20 +37,43 @@ def data_root() -> Path:
 def box_root() -> Path:
     return Path(CFG["box_root"])
 
+# def raw_path(dataset: str, *parts: str) -> Path:
+#     """
+#     RAW (Box): <box_root>/<DATASET>/...
+#     Keeps dataset case (e.g., 'DREAMACHINE').
+#     """
+#     ds = _norm_dataset(dataset)
+#     return box_root().joinpath(ds, *parts)
+
+# def proc_path(dataset: str, *parts: str) -> Path:
+#     """
+#     PROCESSED: <data_root>/<dataset.lower()>/...
+#     """
+#     ds = _norm_dataset(dataset).lower()
+#     return data_root().joinpath(ds, *parts)
+
 def raw_path(dataset: str, *parts: str) -> Path:
     """
-    RAW (Box): <box_root>/<DATASET>/...
-    Keeps dataset case (e.g., 'DREAMACHINE').
+    RAW: <data_root>/raw/...
+    Files are named like <dataset>_raw.csv directly in the raw folder.
+    """
+    return data_root().joinpath("raw", *parts)
+
+def proc_path(dataset: str, *parts: str) -> Path:
+    """
+    PROCESSED: <data_root>/preprocessed/...
+    Files are named like <dataset>_preprocessed.csv directly in the preprocessed folder.
+    """
+    return data_root().joinpath("preprocessed", *parts)
+
+def box_path(dataset: str, *parts: str) -> Path:
+    """
+    RAW META (from TM Box): <box_root>/<DATASET>/...
+    Original source data from Box.
     """
     ds = _norm_dataset(dataset)
     return box_root().joinpath(ds, *parts)
 
-def proc_path(dataset: str, *parts: str) -> Path:
-    """
-    PROCESSED: <data_root>/<dataset.lower()>/...
-    """
-    ds = _norm_dataset(dataset).lower()
-    return data_root().joinpath(ds, *parts)
 
 def eval_path(dataset: str, *parts: str) -> Path:
     """

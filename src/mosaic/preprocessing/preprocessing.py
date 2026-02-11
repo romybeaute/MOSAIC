@@ -1059,6 +1059,157 @@ def get_data_paths(dataset_name, data_dir="DATA", method="basic", sample=None):
     return str(input_path), str(output_path)
 
 
+
+
+# ==============================================================================
+# SECTION X: POST-PROCESSING TRANSLATION CHECK
+# ==============================================================================
+
+from langdetect import detect, LangDetectException
+
+def translate_remaining_non_english(
+    input_csv: str,
+    output_csv: str,
+    text_column: str = "cleaned_text",
+    confidence_threshold: float = 0.8,
+    languages_to_translate: list = None,
+    n_ctx: int = 16384
+):
+    """
+    Checks each sentence for language. If not English, translates with Llama.
+    
+    Args:
+        input_csv: Path to sentence-level CSV (output of basic_preprocess)
+        output_csv: Path for final all-English output
+        text_column: Column containing text to check
+        confidence_threshold: langdetect confidence threshold
+    """
+    print(f"\n{'='*80}")
+    print("TRANSLATION CHECK: Finding non-English sentences...")
+    print(f"{'='*80}\n")
+    
+    df = pd.read_csv(input_csv)
+    total = len(df)
+    
+    # Detect language for each row
+    languages = []
+    for idx, text in enumerate(tqdm(df[text_column], desc="Detecting languages")):
+        try:
+            if pd.isna(text) or str(text).strip() == "":
+                languages.append("empty")
+            else:
+                lang = detect(str(text))
+                languages.append(lang)
+        except LangDetectException:
+            languages.append("unknown")
+    
+    df['detected_language'] = languages
+    
+    # Count non-English
+    # non_english_mask = ~df['detected_language'].isin(['en', 'empty', 'unknown'])
+    if languages_to_translate:
+    # Only translate specified languages
+        non_english_mask = df['detected_language'].isin(languages_to_translate)
+    else:
+        # Translate all non-English
+        non_english_mask = ~df['detected_language'].isin(['en', 'empty', 'unknown'])
+    non_english_count = non_english_mask.sum()
+    
+    print(f"\nLanguage distribution:")
+    print(df['detected_language'].value_counts().head(10))
+    print(f"\nTotal sentences: {total}")
+    print(f"Non-English sentences to translate: {non_english_count}")
+    
+    if non_english_count == 0:
+        print("All sentences are already in English!")
+        df.to_csv(output_csv, index=False)
+        return df
+    
+    # Load Llama model (reuse your existing setup)
+    if not HAS_LLAMA_CPP:
+        raise ImportError("llama-cpp-python required. Install with: pip install llama-cpp-python")
+    
+    print(f"\nLoading Llama model for translation...")
+    
+    # model_path = get_llama_model_path()  
+    # llm = Llama(
+    #     model_path=model_path,
+    #     n_ctx=4096,
+    #     n_gpu_layers=-1,
+    #     verbose=False
+    # )
+    try:
+        model_path = hf_hub_download(
+            repo_id='NousResearch/Meta-Llama-3-8B-Instruct-GGUF',
+            filename='Meta-Llama-3-8B-Instruct-Q4_K_M.gguf'
+        )
+        # DETERMINISTIC SETTINGS (temperature=0, seed=42 for reproducibility)
+        llama = Llama(
+            model_path=model_path, 
+            n_gpu_layers=-1, 
+            n_ctx=n_ctx,  # CONFIGURABLE: default 16384
+            verbose=False,
+            seed=42  # Fixed seed for reproducibility
+        )
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return None
+    
+    # Translation prompt template
+    def make_translation_prompt(text, source_lang):
+        return f"""Translate the following {source_lang} text to English. 
+Output ONLY the English translation, nothing else.
+
+Text: {text}
+
+English translation:"""
+
+    # Translate non-English sentences
+    translated_texts = df[text_column].tolist()
+    
+    non_english_indices = df[non_english_mask].index.tolist()
+    
+    for idx in tqdm(non_english_indices, desc="Translating"):
+        original_text = df.loc[idx, text_column]
+        source_lang = df.loc[idx, 'detected_language']
+        
+        try:
+            prompt = make_translation_prompt(original_text, source_lang)
+            
+            response = llama(
+                prompt,
+                max_tokens=len(original_text) * 2,  # Allow some expansion
+                temperature=0,
+                stop=["\n\n"]
+            )
+            
+            translation = response['choices'][0]['text'].strip()
+            translation = clean_llama_output_programmatically(translation)
+            
+            translated_texts[idx] = translation
+            
+        except Exception as e:
+            print(f"Error translating row {idx}: {e}")
+            # Keep original if translation fails
+            translated_texts[idx] = f"[TRANSLATION_ERROR] {original_text}"
+    
+    # Update dataframe
+    df['original_text'] = df[text_column]
+    df[text_column] = translated_texts
+    df['was_translated'] = non_english_mask
+    
+    # Save
+    df.to_csv(output_csv, index=False)
+    
+    print(f"\n{'='*80}")
+    print(f"COMPLETE: Translated {non_english_count} sentences")
+    print(f"Output saved to: {output_csv}")
+    print(f"{'='*80}\n")
+    
+    return df
+
+
+
 # =============================================================================
 # SECTION 6: CLI ENTRY POINT
 # =============================================================================
