@@ -199,9 +199,9 @@ class OptunaSearchBERTopic:
         sanitized_model = self.transformer_model_name.replace('/', '_')
         
         if not project_root.exists():
-            project_root = Path("RESULTS/optuna")
+            project_root = Path("results/optuna")
         else:
-            project_root = project_root / "RESULTS/optuna"
+            project_root = project_root / "results/optuna"
             
         results_dir = project_root / self.dataset
         results_dir.mkdir(parents=True, exist_ok=True)
@@ -311,7 +311,7 @@ class OptunaSearchBERTopic:
         
         if self.use_sentences:
             texts, _ = split_sentences(texts.tolist())
-            min_words = 2
+            min_words = 3
             texts = [s for s in texts if len(s.split()) >= min_words]
             # Deduplicate
             seen = set()
@@ -495,3 +495,14 @@ if __name__ == "__main__":
     )
     
     search.run_optimization(n_trials=args.n_trials)
+
+
+
+# # Minimal run, no config, no sentence splitting
+# python optuna_search.py --dataset ganzfeld_GREEN --sentences --n_trials 50 
+
+# # With sentence splitting but no config
+# python optuna_search.py --dataset dreamachine --sentences --n_trials 50
+
+# # Full run with config and a specific condition
+# python optuna_search.py --dataset dreamachine --condition EO --use-config --sentences --n_trials 200

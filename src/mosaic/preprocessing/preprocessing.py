@@ -1166,10 +1166,12 @@ English translation:"""
 
     # Translate non-English sentences
     translated_texts = df[text_column].tolist()
-    
     non_english_indices = df[non_english_mask].index.tolist()
-    
-    for idx in tqdm(non_english_indices, desc="Translating"):
+
+    # ADD THIS: Save every N translations
+    SAVE_EVERY = 50
+
+    for i, idx in enumerate(tqdm(non_english_indices, desc="Translating")):
         original_text = df.loc[idx, text_column]
         source_lang = df.loc[idx, 'detected_language']
         
@@ -1178,7 +1180,7 @@ English translation:"""
             
             response = llama(
                 prompt,
-                max_tokens=len(original_text) * 2,  # Allow some expansion
+                max_tokens=len(original_text) * 2,
                 temperature=0,
                 stop=["\n\n"]
             )
@@ -1190,8 +1192,13 @@ English translation:"""
             
         except Exception as e:
             print(f"Error translating row {idx}: {e}")
-            # Keep original if translation fails
             translated_texts[idx] = f"[TRANSLATION_ERROR] {original_text}"
+        
+        # ADD THIS: Save progress every 50 translations
+        if (i + 1) % SAVE_EVERY == 0:
+            df[text_column] = translated_texts
+            df.to_csv(output_csv, index=False)
+            print(f"\n[CHECKPOINT] Saved progress: {i + 1}/{len(non_english_indices)} translations")
     
     # Update dataframe
     df['original_text'] = df[text_column]
